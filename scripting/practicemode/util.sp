@@ -1,6 +1,8 @@
 #include <cstrike>
 #include <sdktools>
 
+#define DEFAULT_MENU_LENGTH 128
+
 #tryinclude "manual_version.sp"
 #if !defined PLUGIN_VERSION
 #define PLUGIN_VERSION "1.2.3-dev"

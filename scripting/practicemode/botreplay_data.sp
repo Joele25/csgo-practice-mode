@@ -245,3 +245,53 @@ public void BackupReplayData(KeyValues kv) {
     }
   }
 }
+
+public void GarbageCollectReplays() {
+  ArrayList replaysInUse = new ArrayList(PLATFORM_MAX_PATH + 1);
+
+  // Get all replays currently in use.
+  AddReplayFilesToList(g_ReplaysKv, replaysInUse);
+
+  // Get all the replays still in a backup file.
+  char map[PLATFORM_MAX_PATH + 1];
+  GetCleanMapName(map, sizeof(map));
+  for (int version = 1; version <= kMaxBackupsPerMap; version++) {
+    char path[PLATFORM_MAX_PATH + 1];
+    BuildPath(Path_SM, path, sizeof(path), "data/practicemode/replays/backups/%s.%d.cfg", map,
+              version);
+    KeyValues kv = new KeyValues("Replays");
+    if (kv.ImportFromFile(path)) {
+      AddReplayFilesToList(kv, replaysInUse);
+    }
+    delete kv;
+  }
+
+  char path[PLATFORM_MAX_PATH + 1];
+  ArrayList loadedRecords = BotMimic_GetLoadedRecordList();  // Don't close this.
+  for (int i = 0; i < loadedRecords.Length; i++) {
+    loadedRecords.GetString(i, path, sizeof(path));
+    if (FindStringInList(replaysInUse, sizeof(path), path) == -1) {
+      BotMimic_DeleteRecord(path);
+    }
+  }
+
+  delete replaysInUse;
+}
+
+public void AddReplayFilesToList(KeyValues kv, ArrayList list) {
+  if (kv.GotoFirstSubKey()) {
+    do {
+      for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
+        char role[64];
+        Format(role, sizeof(role), "role%d", i + 1);
+        if (kv.JumpToKey(role)) {
+          char buffer[PLATFORM_MAX_PATH + 1];
+          kv.GetString("file", buffer, sizeof(buffer));
+          list.PushString(buffer);
+          kv.GoBack();
+        }
+      }
+    } while (kv.GotoNextKey());
+    kv.GoBack();
+  }
+}

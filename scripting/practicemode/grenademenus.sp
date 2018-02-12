@@ -21,7 +21,7 @@ stock void GivePracticeMenu(int client, int style = ITEMDRAW_DEFAULT, int pos = 
     char enabled[32];
     GetEnabledString(enabled, sizeof(enabled), g_BinaryOptionEnabled.Get(i), client);
 
-    char buffer[128];
+    char buffer[DEFAULT_MENU_LENGTH];
     Format(buffer, sizeof(buffer), "%s: %s", name, enabled);
     AddMenuItem(menu, name, buffer, style);
   }
@@ -159,10 +159,10 @@ static int AddPlayersToMenu(Menu menu) {
       g_GrenadeLocationsKv.GetSectionName(auth, sizeof(auth));
       g_GrenadeLocationsKv.GetString("name", name, sizeof(name));
 
-      char info[256];
+      char info[DEFAULT_MENU_LENGTH];
       Format(info, sizeof(info), "%s %s", auth, name);
 
-      char display[256];
+      char display[DEFAULT_MENU_LENGTH];
       Format(display, sizeof(display), "%s (%d saved)", name, nadeCount);
       if (nadeCount > 0) {
         count++;
@@ -183,9 +183,9 @@ static int AddCategoriesToMenu(Menu menu) {
     g_KnownNadeCategories.GetString(i, cat, sizeof(cat));
     int categoryCount = CountCategoryNades(cat);
 
-    char info[256];
+    char info[DEFAULT_MENU_LENGTH];
     Format(info, sizeof(info), "cat %s", cat);
-    char display[256];
+    char display[DEFAULT_MENU_LENGTH];
     Format(display, sizeof(display), "Category: %s (%d saved)", cat, categoryCount);
 
     if (categoryCount > 0) {
@@ -290,7 +290,7 @@ int SortIdArrayByName(int index1, int index2, Handle array, Handle hndl) {
 
 stock void AddGrenadeToMenu(Menu menu, const char[] ownerName, const char[] strId,
                             const char[] name, bool showPlayerName = false) {
-  char display[128];
+  char display[DEFAULT_MENU_LENGTH];
   if (showPlayerName && g_SharedAllNadesCvar.IntValue == 0 && !StrEqual(ownerName, "")) {
     Format(display, sizeof(display), "%s (%s-%s)", name, ownerName, strId);
   } else {

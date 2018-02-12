@@ -29,9 +29,9 @@ stock void GiveNewReplayMenu(int client, int pos = 0) {
   menu.AddItem("delete", "Delete this replay entirely");
 
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    char infoString[64];
+    char infoString[DEFAULT_MENU_LENGTH];
     Format(infoString, sizeof(infoString), "play %d", i);
-    char displayString[64];
+    char displayString[DEFAULT_MENU_LENGTH];
     Format(displayString, sizeof(displayString), "Replay player %d role", i + 1);
     menu.AddItem(infoString, displayString, EnabledIf(HasRoleRecorded(g_ReplayId, i)));
   }

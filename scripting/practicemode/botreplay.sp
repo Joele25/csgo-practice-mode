@@ -11,11 +11,11 @@
 // All Set* data methods should set this to true.
 bool g_UpdatedReplayKv = false;
 
-
 bool g_StopBotSignal[MAXPLAYERS + 1];
 
 float g_CurrentRecordingStartTime = 0.0;
 int g_CurrentRecordingRole = -1;
+
 
 char g_ReplayId[REPLAY_ID_LENGTH];
 int g_ReplayBotClients[MAX_REPLAY_CLIENTS];
@@ -46,7 +46,7 @@ public void BotReplay_MapEnd() {
 
   // TODO: re-enable GarbageCollectReplays once it doesn't delete files currently saved in
   // backups files.
-  // GarbageCollectReplays();
+  GarbageCollectReplays();
 }
 
 public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeType, const float origin[3],
@@ -327,36 +327,6 @@ public void Timer_DelayKillBot(int serial) {
     TeleportEntity(client, zero, zero, zero);
     KillBot(client);
   }
-}
-
-public void GarbageCollectReplays() {
-  ArrayList replaysInUse = new ArrayList(PLATFORM_MAX_PATH + 1);
-  if (g_ReplaysKv.GotoFirstSubKey()) {
-    do {
-      for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-        char role[64];
-        Format(role, sizeof(role), "role%d", i + 1);
-        if (g_ReplaysKv.JumpToKey(role)) {
-          char buffer[PLATFORM_MAX_PATH + 1];
-          g_ReplaysKv.GetString("file", buffer, sizeof(buffer));
-          replaysInUse.PushString(buffer);
-          g_ReplaysKv.GoBack();
-        }
-      }
-    } while (g_ReplaysKv.GotoNextKey());
-    g_ReplaysKv.GoBack();
-  }
-
-  char path[PLATFORM_MAX_PATH + 1];
-  ArrayList loadedRecords = BotMimic_GetLoadedRecordList();  // Don't close this.
-  for (int i = 0; i < loadedRecords.Length; i++) {
-    loadedRecords.GetString(i, path, sizeof(path));
-    if (FindStringInList(replaysInUse, sizeof(path), path) == -1) {
-      BotMimic_DeleteRecord(path);
-    }
-  }
-
-  delete replaysInUse;
 }
 
 public void AddReplayNade(int client, GrenadeType type, float delay, const float[3] origin,
