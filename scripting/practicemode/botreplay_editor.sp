@@ -1,6 +1,13 @@
 stock void GiveNewReplayMenu(int client, int pos = 0) {
   Menu menu = new Menu(ReplayMenuHandler);
-  menu.SetTitle("Replay editor");
+  char replayName[REPLAY_NAME_LENGTH];
+  GetReplayName(g_ReplayId, replayName, sizeof(replayName));
+
+  if (StrEqual(replayName, DEFAULT_REPLAY_NAME, false)) {
+    menu.SetTitle("Replay editor");
+  } else {
+    menu.SetTitle("Replay editor: %s", replayName);
+  }
 
   /* Page 1 */
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
@@ -109,14 +116,14 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       }
       if (BotMimic_IsPlayerRecording(client)) {
         BotMimic_StopRecording(client, false /* save */);
-        PM_Message(client, "Cancelled recording");
+        PM_Message(client, "Cancelled recording.");
       }
       GiveNewReplayMenu(client, GetMenuSelectionPosition());
 
     } else if (StrEqual(buffer, "delete")) {
       char replayName[REPLAY_NAME_LENGTH];
       GetReplayName(g_ReplayId, replayName, sizeof(replayName));
-      PM_Message(client, "Deleted replay %s", replayName);
+      PM_Message(client, "Deleted replay: %s", replayName);
       DeleteReplay(g_ReplayId);
       ResetData();
       GiveMainReplaysMenu(client);
@@ -126,9 +133,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       int index = StringToInt(buffer[5]);
       int bot = g_ReplayBotClients[index];
       if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId, index)) {
-        char filepath[PLATFORM_MAX_PATH + 1];
-        GetRoleFile(g_ReplayId, index, filepath, sizeof(filepath));
-        PlayRecord(bot, filepath);
+        ReplayRole(bot, index);
       }
       GiveNewReplayMenu(client, GetMenuSelectionPosition());
 
@@ -151,7 +156,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
           PM_Message(client, "Started recording player %d role.", i + 1);
           PM_Message(client, "Use .finish OR your inspect (default:f) bind to stop.");
           char recordName[128];
-          Format(recordName, sizeof(recordName), "Player %d", i + 1);
+          Format(recordName, sizeof(recordName), "Player %d role", i + 1);
           BotMimic_StartRecording(client, recordName, "practicemode");
           RunCurrentReplay(i);
 
@@ -189,8 +194,11 @@ public Action BotMimic_OnStopRecording(int client, char[] name, char[] category,
 public void BotMimic_OnRecordSaved(int client, char[] name, char[] category, char[] subdir, char[] file) {
   if (g_CurrentRecordingRole >= 0) {
     SetRoleFile(g_ReplayId, g_CurrentRecordingRole, file);
+    SetRoleNades(g_ReplayId, g_CurrentRecordingRole, client);
     PM_Message(client, "Finished recording player role %d", g_CurrentRecordingRole + 1);
+
     g_CurrentRecordingRole = -1;
     GiveNewReplayMenu(client);
+    MaybeWriteNewReplayData();
   }
 }

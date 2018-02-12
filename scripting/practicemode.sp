@@ -21,6 +21,8 @@
 #pragma semicolon 1
 #pragma newdecls required
 
+const int kMaxBackupsPerMap = 30;
+
 bool g_InPracticeMode = false;
 bool g_PugsetupLoaded = false;
 bool g_CSUtilsLoaded = false;
@@ -712,6 +714,7 @@ public void OnMapStart() {
   EnforceDirectoryExists("data/practicemode/grenades/backups");
   EnforceDirectoryExists("data/practicemode/spawns");
   EnforceDirectoryExists("data/practicemode/replays");
+  EnforceDirectoryExists("data/practicemode/replays/backups");
 
   // This supports backwards compatability for grenades saved in the old location
   // data/practicemode_grenades. The data is transferred to the new

@@ -1,10 +1,16 @@
 #define REPLAY_NAME_LENGTH 128
 #define REPLAY_ID_LENGTH 16
 #define MAX_REPLAY_CLIENTS 5
+#define DEFAULT_REPLAY_NAME "unnamed - use .namereplay on me!"
 
 // Ideas:
-// 1. Remove local storage and always go the KV structure?
-// 2. When starting a replay, give it a temp name, and then they can rename it later?
+// 1. ADD A WARNING WHEN YOU NADE TOO EARLY IN THE REPLAY!
+// 2. Does practicemode-saved nade data respect cancellation?
+
+// If any data has been changed since load, this should be set.
+// All Set* data methods should set this to true.
+bool g_UpdatedReplayKv = false;
+
 
 bool g_StopBotSignal[MAXPLAYERS + 1];
 
@@ -36,17 +42,18 @@ public void BotReplay_MapStart() {
 }
 
 public void BotReplay_MapEnd() {
-  SaveReplayKv();
-  GarbageCollectReplays();
+  MaybeWriteNewReplayData();
+
+  // TODO: re-enable GarbageCollectReplays once it doesn't delete files currently saved in
+  // backups files.
+  // GarbageCollectReplays();
 }
 
 public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeType, const float origin[3],
                             const float velocity[3]) {
   if (g_CurrentRecordingRole >= 0) {
     float delay = GetGameTime() - g_CurrentRecordingStartTime;
-    for (int i = 0; i <= MaxClients; i++) {
-      AddReplayNade(i, grenadeType, delay, origin, velocity);
-    }
+    AddReplayNade(client, grenadeType, delay, origin, velocity);
   }
 
   if (BotMimic_IsPlayerMimicing(client)) {
@@ -60,19 +67,8 @@ public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeTy
       GetReplayNade(client, index, type, delay, nadeOrigin, nadeVelocity);
       TeleportEntity(entity, nadeOrigin, NULL_VECTOR, nadeVelocity);
       g_CurrentReplayNadeIndex[client]++;
-    } else {
-      LogError("Tried replaying index=%d nade on %L, but list only size=%d", index, client, length);
     }
   }
-}
-
-public void SaveReplayKv() {
-  char map[PLATFORM_MAX_PATH];
-  GetCleanMapName(map, sizeof(map));
-  char replayFile[PLATFORM_MAX_PATH + 1];
-  BuildPath(Path_SM, replayFile, sizeof(replayFile), "data/practicemode/replays/%s.cfg", map);
-  DeleteFile(replayFile);
-  g_ReplaysKv.ExportToFile(replayFile);
 }
 
 public bool HasActiveReplay() {
@@ -257,7 +253,6 @@ public void KillBot(int client) {
 public void ResetData() {
   g_ReplayId = "";
   g_CurrentRecordingRole = -1;
-
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     g_StopBotSignal[i] = false;
   }
@@ -271,18 +266,21 @@ stock void RunCurrentReplay(int exclude = -1) {
 
     int bot = g_ReplayBotClients[i];
     if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId, i)) {
-      char filepath[PLATFORM_MAX_PATH + 1];
-      GetRoleFile(g_ReplayId, i, filepath, sizeof(filepath));
-      PlayRecord(bot, filepath);
+      ReplayRole(bot, i);
     }
   }
 }
 
-void PlayRecord(int client, const char[] filepath) {
+void ReplayRole(int client, int role) {
   if (!IsValidClient(client)) {
     return;
   }
 
+  char filepath[PLATFORM_MAX_PATH + 1];
+  GetRoleFile(g_ReplayId, role, filepath, sizeof(filepath));
+  GetRoleNades(g_ReplayId, role, client);
+
+  g_CurrentReplayNadeIndex[client] = 0;
   CS_RespawnPlayer(client);
   DataPack pack = new DataPack();
   pack.WriteCell(client);
@@ -302,7 +300,7 @@ public void StartReplay(DataPack pack) {
   if (err != BM_NoError) {
     char errString[128];
     BotMimic_GetErrorString(err, errString, sizeof(errString));
-    LogError("Error playing record %s on client %d", filepath, client);
+    LogError("Error playing record %s on client %d: %s", filepath, client, errString);
   }
 
   delete pack;
@@ -332,8 +330,6 @@ public void Timer_DelayKillBot(int serial) {
 }
 
 public void GarbageCollectReplays() {
-  // TODO: when bot replay keyvalue files are backed up this will also have to
-  // check older versions before garbage collecting.
   ArrayList replaysInUse = new ArrayList(PLATFORM_MAX_PATH + 1);
   if (g_ReplaysKv.GotoFirstSubKey()) {
     do {
