@@ -25,6 +25,7 @@ stock void GiveNewReplayMenu(int client, int pos = 0) {
   menu.AddItem("replay", "Run replay");
 
   /* Page 2 */
+  menu.AddItem("recordall", "Record all player roles at once");
   menu.AddItem("stop", "Stop current replay");
   menu.AddItem("delete", "Delete this replay entirely");
 
@@ -42,26 +43,34 @@ stock void GiveNewReplayMenu(int client, int pos = 0) {
   menu.DisplayAt(client, pos, MENU_TIME_FOREVER);
 }
 
+void FinishRecording(int client, bool printOnFail) {
+  if (g_RecordingFullReplay) {
+    for (int i = 0; i <= MaxClients; i++) {
+      if (IsPlayer(i) && BotMimic_IsPlayerRecording(i)) {
+        BotMimic_StopRecording(client, true /* save */);
+      }
+    }
+
+  } else {
+    if (BotMimic_IsPlayerRecording(client)) {
+      BotMimic_StopRecording(client, true /* save */);
+    } else if (printOnFail) {
+      PM_Message(client, "You aren't recording a playback right now.");
+    }
+  }
+}
+
 public Action Command_FinishRecording(int client, int args) {
   if (!g_InPracticeMode) {
     return Plugin_Handled;
   }
-
-  if (BotMimic_IsPlayerRecording(client)) {
-    BotMimic_StopRecording(client, true /* save */);
-  } else {
-    PM_Message(client, "You aren't recording a playback right now.");
-  }
-
+  FinishRecording(client, true);
   return Plugin_Handled;
 }
 
 public Action Command_LookAtWeapon(int client, const char[] command, int argc) {
   // TODO: also hook the noclip command as a way to finish recording.
-  if (BotMimic_IsPlayerRecording(client)) {
-    BotMimic_StopRecording(client, true /* save */);
-  }
-
+  FinishRecording(client, false);
   return Plugin_Continue;
 }
 
@@ -100,7 +109,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       } else {
         char replayName[REPLAY_NAME_LENGTH];
         GetReplayName(g_ReplayId, replayName, sizeof(replayName));
-        PM_Message(client, "Starting replay: %s", replayName);
+        PM_MessageToAll("Starting replay: %s", replayName);
         RunCurrentReplay();
       }
 
@@ -137,6 +146,42 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       }
       GiveNewReplayMenu(client, GetMenuSelectionPosition());
 
+    } else if (StrEqual(buffer, "recordall")) {
+      // Start recording all T players at once.
+      // TODO: error check before starting here.
+      // 1. Nobody should be recording already
+      // 2. Count the total # roles before
+      int count = 0;
+      for (int i = 0; i <= MaxClients; i++) {
+        if (IsPlayer(i) && !BotMimic_IsPlayerRecording(i) && GetClientTeam(i) == CS_TEAM_T) {
+          count++;
+        }
+      }
+      if (count == 0) {
+        PM_Message(client, "Cannot record a full replay with no players on the T team.");
+        return 0;
+      }
+      if (count >= MAX_REPLAY_CLIENTS) {
+        PM_Message(
+            client,
+            "Cannot record a full replay with %d players on the T team. Only up to %d is supported.",
+            count, MAX_REPLAY_CLIENTS);
+        return 0;
+      }
+
+      int role = 0;
+      for (int i = 0; i <= MaxClients; i++) {
+        if (IsPlayer(i) && !BotMimic_IsPlayerRecording(i) && GetClientTeam(i) == CS_TEAM_T) {
+          StartRecording(i, role, false);
+          role++;
+        }
+      }
+      g_RecordingFullReplay = true;
+      g_RecordingFullReplayClient = client;
+      PM_MessageToAll("Began recording %d-player replay.", count);
+      PM_MessageToAll(
+          "When any player presses their inspect button (default:f) the recording will stop.");
+
     } else {
       // Handling for recording players [0, 4]
       for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
@@ -148,18 +193,8 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
             GiveMainReplaysMenu(client);
             break;
           }
-
-          g_NadeReplayData[client].Clear();
-          g_CurrentRecordingRole = i;
-          g_CurrentRecordingStartTime = GetGameTime();
-
-          PM_Message(client, "Started recording player %d role.", i + 1);
-          PM_Message(client, "Use .finish OR your inspect (default:f) bind to stop.");
-          char recordName[128];
-          Format(recordName, sizeof(recordName), "Player %d role", i + 1);
-          BotMimic_StartRecording(client, recordName, "practicemode");
+          StartRecording(client, i);
           RunCurrentReplay(i);
-
           break;
         }
       }
@@ -176,14 +211,33 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
   return 0;
 }
 
+stock void StartRecording(int client, int role, bool printCommands = true) {
+  if (role < 0 || role >= MAX_REPLAY_CLIENTS) {
+    return;
+  }
+
+  g_NadeReplayData[client].Clear();
+  g_CurrentRecordingRole[client] = role;
+  g_CurrentRecordingStartTime[client] = GetGameTime();
+
+  char recordName[128];
+  Format(recordName, sizeof(recordName), "Player %d role", role + 1);
+  BotMimic_StartRecording(client, recordName, "practicemode");
+
+  if (printCommands) {
+    PM_Message(client, "Started recording player %d role.", role + 1);
+    PM_Message(client, "Use .finish OR your inspect (default:f) bind to stop.");
+  }
+}
+
 public Action BotMimic_OnStopRecording(int client, char[] name, char[] category, char[] subdir,
                                 char[] path, bool& save) {
-  if (g_CurrentRecordingRole >= 0) {
+  if (g_CurrentRecordingRole[client] >= 0) {
     if (!save) {
       // We only handle the not-saving case here because BotMimic_OnRecordSaved below
       // is handling the saving case.
-      PM_Message(client, "Cancelled recording player role %d", g_CurrentRecordingRole + 1);
-      g_CurrentRecordingRole = -1;
+      PM_Message(client, "Cancelled recording player role %d", g_CurrentRecordingRole[client] + 1);
+      g_CurrentRecordingRole[client] = -1;
       GiveNewReplayMenu(client);
     }
   }
@@ -192,13 +246,17 @@ public Action BotMimic_OnStopRecording(int client, char[] name, char[] category,
 }
 
 public void BotMimic_OnRecordSaved(int client, char[] name, char[] category, char[] subdir, char[] file) {
-  if (g_CurrentRecordingRole >= 0) {
-    SetRoleFile(g_ReplayId, g_CurrentRecordingRole, file);
-    SetRoleNades(g_ReplayId, g_CurrentRecordingRole, client);
-    PM_Message(client, "Finished recording player role %d", g_CurrentRecordingRole + 1);
+  if (g_CurrentRecordingRole[client] >= 0) {
+    SetRoleFile(g_ReplayId, g_CurrentRecordingRole[client], file);
+    SetRoleNades(g_ReplayId, g_CurrentRecordingRole[client], client);
+    PM_Message(client, "Finished recording player role %d", g_CurrentRecordingRole[client] + 1);
 
-    g_CurrentRecordingRole = -1;
-    GiveNewReplayMenu(client);
+    g_CurrentRecordingRole[client] = -1;
+
+    if (!g_RecordingFullReplay || g_RecordingFullReplayClient == client) {
+      GiveNewReplayMenu(client);
+    }
+
     MaybeWriteNewReplayData();
   }
 }

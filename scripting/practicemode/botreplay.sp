@@ -11,12 +11,16 @@
 // All Set* data methods should set this to true.
 bool g_UpdatedReplayKv = false;
 
+bool g_RecordingFullReplay = false;
+// TODO: find when to reset g_RecordingFullReplayClient
+int g_RecordingFullReplayClient = -1;
+
 bool g_StopBotSignal[MAXPLAYERS + 1];
 
-float g_CurrentRecordingStartTime = 0.0;
-int g_CurrentRecordingRole = -1;
+float g_CurrentRecordingStartTime[MAXPLAYERS + 1];
+int g_CurrentRecordingRole[MAXPLAYERS + 1];
 
-
+// TODO: make g_ReplayId per-client
 char g_ReplayId[REPLAY_ID_LENGTH];
 int g_ReplayBotClients[MAX_REPLAY_CLIENTS];
 
@@ -51,8 +55,8 @@ public void BotReplay_MapEnd() {
 
 public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeType, const float origin[3],
                             const float velocity[3]) {
-  if (g_CurrentRecordingRole >= 0) {
-    float delay = GetGameTime() - g_CurrentRecordingStartTime;
+  if (g_CurrentRecordingRole[client] >= 0) {
+    float delay = GetGameTime() - g_CurrentRecordingStartTime[client];
     AddReplayNade(client, grenadeType, delay, origin, velocity);
   }
 
@@ -112,6 +116,7 @@ public Action Timer_GetBots(Handle timer) {
 }
 
 void InitReplayFunctions() {
+  ResetData();
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     g_ReplayBotClients[i] = -1;
   }
@@ -130,7 +135,7 @@ void InitReplayFunctions() {
 
   g_BotInit = true;
   g_InBotReplayMode = true;
-  g_CurrentRecordingRole = -1;
+  g_RecordingFullReplay = false;
 
   // Settings we need to have the mode work
   DisableSettingById("respawning");
@@ -252,9 +257,11 @@ public void KillBot(int client) {
 
 public void ResetData() {
   g_ReplayId = "";
-  g_CurrentRecordingRole = -1;
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     g_StopBotSignal[i] = false;
+  }
+  for (int i = 0; i <= MaxClients; i++) {
+    g_CurrentRecordingRole[i] = -1;
   }
 }
 
