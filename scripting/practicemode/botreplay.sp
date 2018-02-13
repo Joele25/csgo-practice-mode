@@ -95,22 +95,10 @@ public Action Timer_GetBots(Handle timer) {
   g_BotInit = true;
 
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    char name[64];
+    char name[MAX_NAME_LENGTH];
     Format(name, sizeof(name), "Replay Bot %d", i + 1);
     g_ReplayBotClients[i] = GetLiveBot(name);
   }
-
-  // if (IsValidClient(g_ReplayBotClients[MAX_REPLAY_CLIENTS - 1])) {
-  //   int largestUserid = GetClientUserId(g_ReplayBotClients[MAX_REPLAY_CLIENTS - 1]);
-  //   for (int i = 1; i <= MaxClients; i++) {
-  //     if (IsValidClient(i) && IsFakeClient(i) && !IsClientSourceTV(i)) {
-  //       int userid = GetClientUserId(i);
-  //       if (userid > largestUserid) {
-  //         KickClient(i);
-  //       }
-  //     }
-  //   }
-  // }
 
   return Plugin_Handled;
 }
@@ -119,13 +107,6 @@ void InitReplayFunctions() {
   ResetData();
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     g_ReplayBotClients[i] = -1;
-  }
-
-  int numHumans = 0;
-  for (int i = 0; i <= MAXPLAYERS; i++) {
-    if (IsPlayer(i)) {
-      numHumans++;
-    }
   }
 
   ServerCommand("bot_quota_mode normal");

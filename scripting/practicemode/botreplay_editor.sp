@@ -133,9 +133,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       char replayName[REPLAY_NAME_LENGTH];
       GetReplayName(g_ReplayId[client], replayName, REPLAY_NAME_LENGTH);
       PM_Message(client, "Deleted replay: %s", replayName);
-      DeleteReplay(g_ReplayId[client]);
-      ResetData();
-      GiveMainReplaysMenu(client);
+      GiveDeleteConfirmationMenu(client);
 
     } else if (StrContains(buffer, "play") == 0) {
       // The string shoudl look like "play 2" here, so we pull out the index here.
@@ -147,10 +145,6 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       GiveNewReplayMenu(client, GetMenuSelectionPosition());
 
     } else if (StrEqual(buffer, "recordall")) {
-      // Start recording all T players at once.
-      // TODO: error check before starting here.
-      // 1. Nobody should be recording already
-      // 2. Count the total # roles before
       int count = 0;
       for (int i = 0; i <= MaxClients; i++) {
         if (IsPlayer(i) && !BotMimic_IsPlayerRecording(i) && GetClientTeam(i) == CS_TEAM_T) {
@@ -203,6 +197,50 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
   } else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack) {
     int client = param1;
     GiveMainReplaysMenu(client);
+
+  } else if (action == MenuAction_End) {
+    delete menu;
+  }
+
+  return 0;
+}
+
+public void GiveDeleteConfirmationMenu(int client) {
+  char replayName[REPLAY_NAME_LENGTH];
+  GetReplayName(g_ReplayId[client], replayName, sizeof(replayName));
+
+  Menu menu = new Menu(DeletionMenuHandler);
+  menu.SetTitle("Confirm deletion of replay: %s", replayName);
+  menu.ExitButton = false;
+  menu.ExitBackButton = false;
+  menu.Pagination = MENU_NO_PAGINATION;
+
+  // Add rows of padding to move selection out of "danger zone"
+  for (int i = 0; i < 7; i++) {
+    menu.AddItem("", "", ITEMDRAW_NOTEXT);
+  }
+
+  // Add actual choices
+  menu.AddItem("no", "No, keep it");
+  menu.AddItem("yes", "Yes, delete this");
+  menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int DeletionMenuHandler(Menu menu, MenuAction action, int param1, int param2) {
+  if (action == MenuAction_Select) {
+    int client = param1;
+    char buffer[OPTION_NAME_LENGTH];
+    menu.GetItem(param2, buffer, sizeof(buffer));
+
+    if (StrEqual(buffer, "yes")) {
+      char replayName[REPLAY_NAME_LENGTH];
+      GetReplayName(g_ReplayId[client], replayName, sizeof(replayName));
+      DeleteReplay(g_ReplayId[client]);
+      PM_MessageToAll("Deleted replay: %s", replayName);
+      GiveMainReplaysMenu(client);
+    } else {
+      GiveNewReplayMenu(client);
+    }
 
   } else if (action == MenuAction_End) {
     delete menu;
