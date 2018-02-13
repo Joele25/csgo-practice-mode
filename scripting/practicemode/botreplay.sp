@@ -21,7 +21,7 @@ float g_CurrentRecordingStartTime[MAXPLAYERS + 1];
 int g_CurrentRecordingRole[MAXPLAYERS + 1];
 
 // TODO: make g_ReplayId per-client
-char g_ReplayId[REPLAY_ID_LENGTH];
+char g_ReplayId[MAXPLAYERS + 1][REPLAY_ID_LENGTH];
 int g_ReplayBotClients[MAX_REPLAY_CLIENTS];
 
 int g_CurrentReplayNadeIndex[MAXPLAYERS + 1];
@@ -75,8 +75,8 @@ public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeTy
   }
 }
 
-public bool HasActiveReplay() {
-  return strlen(g_ReplayId) > 0;
+public bool HasActiveReplay(int client) {
+  return strlen(g_ReplayId[client]) > 0;
 }
 
 public bool IsReplayBot(int client) {
@@ -127,7 +127,9 @@ void InitReplayFunctions() {
       numHumans++;
     }
   }
-  for (int i = 0; i < MAX_REPLAY_CLIENTS + numHumans; i++) {
+
+  ServerCommand("bot_quota_mode normal");
+  for (int i = 0; i < MAX_REPLAY_CLIENTS ; i++) {
     ServerCommand("bot_add");
   }
 
@@ -161,7 +163,7 @@ public Action Command_Replay(int client, int args) {
     InitReplayFunctions();
   }
 
-  if (HasActiveReplay()) {
+  if (HasActiveReplay(client)) {
     GiveNewReplayMenu(client);
   } else {
     GiveMainReplaysMenu(client);
@@ -198,7 +200,7 @@ public Action Command_NameReplay(int client, int args) {
     return Plugin_Handled;
   }
 
-  if (strlen(g_ReplayId) == 0) {
+  if (HasActiveReplay(client)) {
     return Plugin_Handled;
   }
 
@@ -208,7 +210,7 @@ public Action Command_NameReplay(int client, int args) {
     PM_Message(client, "You didn't give a name! Use: .namereplay <name> first.");
   } else {
     PM_Message(client, "Saved replay name.");
-    SetReplayName(g_ReplayId, buffer);
+    SetReplayName(g_ReplayId[client], buffer);
   }
   return Plugin_Handled;
 }
@@ -256,23 +258,23 @@ public void KillBot(int client) {
 }
 
 public void ResetData() {
-  g_ReplayId = "";
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     g_StopBotSignal[i] = false;
   }
   for (int i = 0; i <= MaxClients; i++) {
     g_CurrentRecordingRole[i] = -1;
+    g_ReplayId[i] = "";
   }
 }
 
-stock void RunCurrentReplay(int exclude = -1) {
+stock void RunCurrentReplay(int client, int exclude = -1) {
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     if (i == exclude) {
       continue;
     }
 
     int bot = g_ReplayBotClients[i];
-    if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId, i)) {
+    if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId[client], i)) {
       ReplayRole(bot, i);
     }
   }
@@ -284,8 +286,8 @@ void ReplayRole(int client, int role) {
   }
 
   char filepath[PLATFORM_MAX_PATH + 1];
-  GetRoleFile(g_ReplayId, role, filepath, sizeof(filepath));
-  GetRoleNades(g_ReplayId, role, client);
+  GetRoleFile(g_ReplayId[client], role, filepath, sizeof(filepath));
+  GetRoleNades(g_ReplayId[client], role, client);
 
   g_CurrentReplayNadeIndex[client] = 0;
   CS_RespawnPlayer(client);

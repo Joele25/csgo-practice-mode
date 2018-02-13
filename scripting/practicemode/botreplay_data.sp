@@ -28,10 +28,10 @@ public int ReplaysMenuHandler(Menu menu, MenuAction action, int param1, int para
     menu.GetItem(param2, buffer, sizeof(buffer));
 
     if (StrEqual(buffer, "add_new")) {
-      IntToString(GetNextReplayId(), g_ReplayId, sizeof(g_ReplayId));
-      SetReplayName(g_ReplayId, DEFAULT_REPLAY_NAME);
+      IntToString(GetNextReplayId(), g_ReplayId[client], REPLAY_NAME_LENGTH);
+      SetReplayName(g_ReplayId[client], DEFAULT_REPLAY_NAME);
     } else {
-      strcopy(g_ReplayId, sizeof(g_ReplayId), buffer);
+      strcopy(g_ReplayId[client], REPLAY_NAME_LENGTH, buffer);
     }
 
     GiveNewReplayMenu(client);
