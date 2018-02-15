@@ -1,4 +1,5 @@
 #define REPLAY_NAME_LENGTH 128
+#define REPLAY_ROLE_DESCRIPTION_LENGTH 256
 #define REPLAY_ID_LENGTH 16
 #define MAX_REPLAY_CLIENTS 5
 #define DEFAULT_REPLAY_NAME "unnamed - use .namereplay on me!"
@@ -249,7 +250,6 @@ public void ResetData() {
 }
 
 stock void RunReplay(const char[] id, int exclude = -1) {
-  LogMessage("RunReplay %s", id);
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     if (i == exclude) {
       continue;
