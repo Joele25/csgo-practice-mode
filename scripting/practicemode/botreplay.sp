@@ -76,7 +76,7 @@ public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeTy
 }
 
 public bool HasActiveReplay(int client) {
-  return strlen(g_ReplayId[client]) > 0;
+  return ReplayExists(g_ReplayId[client]);
 }
 
 public bool IsReplayBot(int client) {
@@ -248,27 +248,28 @@ public void ResetData() {
   }
 }
 
-stock void RunCurrentReplay(int client, int exclude = -1) {
+stock void RunReplay(const char[] id, int exclude = -1) {
+  LogMessage("RunReplay %s", id);
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     if (i == exclude) {
       continue;
     }
 
     int bot = g_ReplayBotClients[i];
-    if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId[client], i)) {
-      ReplayRole(bot, i);
+    if (IsValidClient(bot) && HasRoleRecorded(id, i)) {
+      ReplayRole(id, bot, i);
     }
   }
 }
 
-void ReplayRole(int client, int role) {
+void ReplayRole(const char[] id, int client, int role) {
   if (!IsValidClient(client)) {
     return;
   }
 
   char filepath[PLATFORM_MAX_PATH + 1];
-  GetRoleFile(g_ReplayId[client], role, filepath, sizeof(filepath));
-  GetRoleNades(g_ReplayId[client], role, client);
+  GetRoleFile(id, role, filepath, sizeof(filepath));
+  GetRoleNades(id, role, client);
 
   g_CurrentReplayNadeIndex[client] = 0;
   CS_RespawnPlayer(client);

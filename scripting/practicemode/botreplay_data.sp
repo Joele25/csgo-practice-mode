@@ -7,6 +7,7 @@ stock void GiveMainReplaysMenu(int client, int pos = 0) {
 
   CleanupNullReplays();
 
+  g_ReplayId[client] = "";
   char id[REPLAY_ID_LENGTH];
   char name[REPLAY_NAME_LENGTH];
   if (g_ReplaysKv.GotoFirstSubKey()) {
@@ -33,6 +34,7 @@ public int ReplaysMenuHandler(Menu menu, MenuAction action, int param1, int para
     } else {
       strcopy(g_ReplayId[client], REPLAY_NAME_LENGTH, buffer);
     }
+    LogMessage("Set %L replay id to %s", client, g_ReplayId[client]);
 
     GiveNewReplayMenu(client);
   } else if (action == MenuAction_End) {
@@ -89,6 +91,15 @@ public void DeleteReplay(const char[] id) {
   }
 }
 
+public bool ReplayExists(const char[] id) {
+  bool ret = false;
+  if (g_ReplaysKv.JumpToKey(id)) {
+    ret = true;
+    g_ReplaysKv.GoBack();
+  }
+  return ret;
+}
+
 public void GetReplayName(const char[] id, char[] buffer, int length) {
   if (g_ReplaysKv.JumpToKey(id)) {
     g_ReplaysKv.GetString("name", buffer, length);
@@ -120,6 +131,7 @@ public bool HasRoleRecorded(const char[] id, int index) {
 }
 
 public bool GetRoleFile(const char[] id, int index, char[] buffer, int len) {
+  LogMessage("GetRoleFile id=%s, index=%d", id, index);
   bool ret = false;
   if (g_ReplaysKv.JumpToKey(id)) {
     char role[DEFAULT_KEY_LENGTH];
@@ -127,6 +139,7 @@ public bool GetRoleFile(const char[] id, int index, char[] buffer, int len) {
     if (g_ReplaysKv.JumpToKey(role)) {
       ret = true;
       g_ReplaysKv.GetString("file", buffer, len);
+      LogMessage("got role file=%s", buffer);
       g_ReplaysKv.GoBack();
     }
     g_ReplaysKv.GoBack();

@@ -1,4 +1,9 @@
 stock void GiveNewReplayMenu(int client, int pos = 0) {
+  if (strlen(g_ReplayId[client]) == 0) {
+    IntToString(GetNextReplayId(), g_ReplayId[client], REPLAY_NAME_LENGTH);
+    SetReplayName(g_ReplayId[client], DEFAULT_REPLAY_NAME);
+  }
+
   Menu menu = new Menu(ReplayMenuHandler);
   char replayName[REPLAY_NAME_LENGTH];
   GetReplayName(g_ReplayId[client], replayName, REPLAY_NAME_LENGTH);
@@ -47,7 +52,7 @@ void FinishRecording(int client, bool printOnFail) {
   if (g_RecordingFullReplay) {
     for (int i = 0; i <= MaxClients; i++) {
       if (IsPlayer(i) && BotMimic_IsPlayerRecording(i)) {
-        BotMimic_StopRecording(client, true /* save */);
+        BotMimic_StopRecording(i, true /* save */);
       }
     }
 
@@ -110,7 +115,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
         char replayName[REPLAY_NAME_LENGTH];
         GetReplayName(g_ReplayId[client], replayName, sizeof(replayName));
         PM_MessageToAll("Starting replay: %s", replayName);
-        RunCurrentReplay(client);
+        RunReplay(g_ReplayId[client]);
       }
 
       GiveNewReplayMenu(client, GetMenuSelectionPosition());
@@ -140,7 +145,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       int index = StringToInt(buffer[5]);
       int bot = g_ReplayBotClients[index];
       if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId[client], index)) {
-        ReplayRole(bot, index);
+        ReplayRole(g_ReplayId[client], bot, index);
       }
       GiveNewReplayMenu(client, GetMenuSelectionPosition());
 
@@ -188,7 +193,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
             break;
           }
           StartRecording(client, i);
-          RunCurrentReplay(client, i);
+          RunReplay(g_ReplayId[client], i);
           break;
         }
       }
