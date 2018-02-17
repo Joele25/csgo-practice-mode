@@ -84,6 +84,14 @@ public Action Command_Cancel(int client, int args) {
     return Plugin_Handled;
   }
 
+  int numReplaying = 0;
+  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
+    int bot = g_ReplayBotClients[i];
+    if (IsValidClient(bot) && BotMimic_IsPlayerMimicing(bot)) {
+      numReplaying++;
+    }
+  }
+
   if (g_RecordingFullReplay) {
     for (int i = 1; i <= MaxClients; i++) {
       if (IsPlayer(i) && BotMimic_IsPlayerRecording(i)) {
@@ -93,6 +101,10 @@ public Action Command_Cancel(int client, int args) {
 
   } else if (BotMimic_IsPlayerRecording(client)) {
     BotMimic_StopRecording(client, false /* save */);
+
+  } else if (numReplaying > 0) {
+    CancelAllReplays();
+    PM_MessageToAll("Cancelled all replays.");
 
   }
 
@@ -127,13 +139,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       GiveNewReplayMenu(client, GetMenuSelectionPosition());
 
     } else if (StrEqual(buffer, "stop")) {
-      for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-        if (IsValidClient(g_ReplayBotClients[i]) &&
-            BotMimic_IsPlayerMimicing(g_ReplayBotClients[i])) {
-          BotMimic_StopPlayerMimic(g_ReplayBotClients[i]);
-          RequestFrame(Timer_DelayKillBot, GetClientSerial(g_ReplayBotClients[i]));
-        }
-      }
+      CancelAllReplays();
       if (BotMimic_IsPlayerRecording(client)) {
         BotMimic_StopRecording(client, false /* save */);
         PM_Message(client, "Cancelled recording.");
@@ -308,6 +314,9 @@ public void BotMimic_OnRecordSaved(int client, char[] name, char[] category, cha
     if (!g_RecordingFullReplay || g_RecordingFullReplayClient == client) {
       GiveNewReplayMenu(client);
     }
+
+    g_RecordingFullReplay = false;
+    g_RecordingFullReplayClient = -1;
 
     MaybeWriteNewReplayData();
   }

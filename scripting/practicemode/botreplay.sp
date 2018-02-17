@@ -111,7 +111,7 @@ void InitReplayFunctions() {
   }
 
   ServerCommand("bot_quota_mode normal");
-  for (int i = 0; i < MAX_REPLAY_CLIENTS ; i++) {
+  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     ServerCommand("bot_add");
   }
 
@@ -342,4 +342,14 @@ public void GetReplayNade(int client, int index, GrenadeType& type, float& delay
   velocity[0] = g_NadeReplayData[client].Get(index, 5);
   velocity[1] = g_NadeReplayData[client].Get(index, 6);
   velocity[2] = g_NadeReplayData[client].Get(index, 7);
+}
+
+public void CancelAllReplays() {
+  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
+    int bot = g_ReplayBotClients[i];
+    if (IsValidClient(bot) && BotMimic_IsPlayerMimicing(bot)) {
+      BotMimic_StopPlayerMimic(bot);
+      RequestFrame(Timer_DelayKillBot, GetClientSerial(bot));
+    }
+  }
 }
