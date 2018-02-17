@@ -182,7 +182,7 @@ public Action Command_NameReplay(int client, int args) {
     return Plugin_Handled;
   }
 
-  if (HasActiveReplay(client)) {
+  if (!HasActiveReplay(client)) {
     return Plugin_Handled;
   }
 

@@ -79,15 +79,21 @@ public Action Command_LookAtWeapon(int client, const char[] command, int argc) {
   return Plugin_Continue;
 }
 
-public Action Command_CancelRecording(int client, int args) {
+public Action Command_Cancel(int client, int args) {
   if (!g_InPracticeMode) {
     return Plugin_Handled;
   }
 
-  if (BotMimic_IsPlayerRecording(client)) {
+  if (g_RecordingFullReplay) {
+    for (int i = 1; i <= MaxClients; i++) {
+      if (IsPlayer(i) && BotMimic_IsPlayerRecording(i)) {
+        BotMimic_StopRecording(client, false /* save */);
+      }
+    }
+
+  } else if (BotMimic_IsPlayerRecording(client)) {
     BotMimic_StopRecording(client, false /* save */);
-  } else {
-    PM_Message(client, "You aren't recording a playback right now.");
+
   }
 
   return Plugin_Handled;
@@ -147,7 +153,10 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId[client], index)) {
         ReplayRole(g_ReplayId[client], bot, index);
       }
-      GiveNewReplayMenu(client, GetMenuSelectionPosition());
+      // TODO: figure out a way to show the menu less obtrusively here,
+      // maybe by doing it when the replay finishes?
+
+      // GiveNewReplayMenu(client, GetMenuSelectionPosition());
 
     } else if (StrEqual(buffer, "recordall")) {
       int count = 0;

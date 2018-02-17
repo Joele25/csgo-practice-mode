@@ -400,8 +400,8 @@ public void OnPluginStart() {
     RegConsoleCmd("sm_namereplay", Command_NameReplay);
     PM_AddChatAlias(".namereplay", "sm_namereplay");
 
-    RegConsoleCmd("sm_cancelrecording", Command_CancelRecording);
-    PM_AddChatAlias(".cancel", "sm_cancelrecording");
+    RegConsoleCmd("sm_cancel", Command_Cancel);
+    PM_AddChatAlias(".cancel", "sm_cancel");
 
     RegConsoleCmd("sm_finishrecording", Command_FinishRecording);
     PM_AddChatAlias(".finish", "sm_finishrecording");
