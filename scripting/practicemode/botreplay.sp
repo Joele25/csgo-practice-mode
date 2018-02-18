@@ -146,7 +146,7 @@ public Action Command_Replay(int client, int args) {
   }
 
   if (HasActiveReplay(client)) {
-    GiveNewReplayMenu(client);
+    GiveReplayEditorMenu(client);
   } else {
     GiveMainReplaysMenu(client);
   }
@@ -352,4 +352,14 @@ public void CancelAllReplays() {
       RequestFrame(Timer_DelayKillBot, GetClientSerial(bot));
     }
   }
+}
+
+public bool IsReplayPlaying() {
+  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
+    int bot = g_ReplayBotClients[i];
+    if (IsValidClient(bot) && BotMimic_IsPlayerMimicing(bot)) {
+      return true;
+    }
+  }
+  return false;
 }

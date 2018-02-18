@@ -35,7 +35,7 @@ public int ReplaysMenuHandler(Menu menu, MenuAction action, int param1, int para
       strcopy(g_ReplayId[client], REPLAY_NAME_LENGTH, buffer);
     }
 
-    GiveNewReplayMenu(client);
+    GiveReplayEditorMenu(client);
   } else if (action == MenuAction_End) {
     delete menu;
   }

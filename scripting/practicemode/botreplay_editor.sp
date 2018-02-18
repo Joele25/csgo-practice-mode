@@ -1,4 +1,4 @@
-stock void GiveNewReplayMenu(int client, int pos = 0) {
+stock void GiveReplayEditorMenu(int client, int pos = 0) {
   if (strlen(g_ReplayId[client]) == 0) {
     IntToString(GetNextReplayId(), g_ReplayId[client], REPLAY_NAME_LENGTH);
     SetReplayName(g_ReplayId[client], DEFAULT_REPLAY_NAME);
@@ -135,7 +135,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
         RunReplay(g_ReplayId[client]);
       }
 
-      GiveNewReplayMenu(client, GetMenuSelectionPosition());
+      GiveReplayEditorMenu(client, GetMenuSelectionPosition());
 
     } else if (StrEqual(buffer, "stop")) {
       CancelAllReplays();
@@ -143,7 +143,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
         BotMimic_StopRecording(client, false /* save */);
         PM_Message(client, "Cancelled recording.");
       }
-      GiveNewReplayMenu(client, GetMenuSelectionPosition());
+      GiveReplayEditorMenu(client, GetMenuSelectionPosition());
 
     } else if (StrEqual(buffer, "delete")) {
       char replayName[REPLAY_NAME_LENGTH];
@@ -161,7 +161,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       // TODO: figure out a way to show the menu less obtrusively here,
       // maybe by doing it when the replay finishes?
 
-      // GiveNewReplayMenu(client, GetMenuSelectionPosition());
+      // GiveReplayEditorMenu(client, GetMenuSelectionPosition());
 
     } else if (StrEqual(buffer, "recordall")) {
       int count = 0;
@@ -179,6 +179,18 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
             client,
             "Cannot record a full replay with %d players on the T team. Only up to %d is supported.",
             count, MAX_REPLAY_CLIENTS);
+        return 0;
+      }
+
+      if (BotMimic_IsPlayerRecording(client)) {
+        PM_Message(client, "Finish your current recording first!");
+        GiveReplayEditorMenu(client, GetMenuSelectionPosition());
+        return 0;
+      }
+
+      if (IsReplayPlaying()) {
+        PM_Message(client, "Finish your current replay first!");
+        GiveReplayEditorMenu(client, GetMenuSelectionPosition());
         return 0;
       }
 
@@ -206,6 +218,12 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
             GiveMainReplaysMenu(client);
             break;
           }
+          if (IsReplayPlaying()) {
+            PM_Message(client, "Finish your current replay first!");
+            GiveMainReplaysMenu(client);
+            break;
+          }
+
           StartRecording(client, i);
           RunReplay(g_ReplayId[client], i);
           break;
@@ -258,7 +276,7 @@ public int DeletionMenuHandler(Menu menu, MenuAction action, int param1, int par
       PM_MessageToAll("Deleted replay: %s", replayName);
       GiveMainReplaysMenu(client);
     } else {
-      GiveNewReplayMenu(client);
+      GiveReplayEditorMenu(client);
     }
 
   } else if (action == MenuAction_End) {
@@ -295,7 +313,7 @@ public Action BotMimic_OnStopRecording(int client, char[] name, char[] category,
       // is handling the saving case.
       PM_Message(client, "Cancelled recording player role %d", g_CurrentRecordingRole[client] + 1);
       g_CurrentRecordingRole[client] = -1;
-      GiveNewReplayMenu(client);
+      GiveReplayEditorMenu(client);
     }
   }
 
@@ -311,7 +329,7 @@ public void BotMimic_OnRecordSaved(int client, char[] name, char[] category, cha
     g_CurrentRecordingRole[client] = -1;
 
     if (!g_RecordingFullReplay || g_RecordingFullReplayClient == client) {
-      GiveNewReplayMenu(client);
+      GiveReplayEditorMenu(client);
     }
 
     g_RecordingFullReplay = false;
