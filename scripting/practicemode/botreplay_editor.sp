@@ -293,6 +293,7 @@ stock void StartRecording(int client, int role, bool printCommands = true) {
 
   g_NadeReplayData[client].Clear();
   g_CurrentRecordingRole[client] = role;
+  g_LastRecordedRole[client] = role;
   g_CurrentRecordingStartTime[client] = GetGameTime();
 
   char recordName[128];

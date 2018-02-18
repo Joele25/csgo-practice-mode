@@ -21,6 +21,9 @@ bool g_StopBotSignal[MAXPLAYERS + 1];
 float g_CurrentRecordingStartTime[MAXPLAYERS + 1];
 int g_CurrentRecordingRole[MAXPLAYERS + 1];
 
+// Same data as g_CurrentRecordingRole, but not reset when  recording finishes.
+int g_LastRecordedRole[MAXPLAYERS + 1];
+
 // TODO: make g_ReplayId per-client
 char g_ReplayId[MAXPLAYERS + 1][REPLAY_ID_LENGTH];
 int g_ReplayBotClients[MAX_REPLAY_CLIENTS];
@@ -245,6 +248,7 @@ public void ResetData() {
   }
   for (int i = 0; i <= MaxClients; i++) {
     g_CurrentRecordingRole[i] = -1;
+    g_LastRecordedRole[i] = -1;
     g_ReplayId[i] = "";
   }
 }

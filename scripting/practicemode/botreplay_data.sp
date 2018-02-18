@@ -78,7 +78,7 @@ public int GetNextReplayId() {
   return largest + 1;
 }
 
-public void GetRoleString(int role, char buf[DEFAULT_KEY_LENGTH]) {
+public void GetRoleKeyString(int role, char buf[DEFAULT_KEY_LENGTH]) {
   Format(buf, sizeof(buf), "role%d", role + 1);
 }
 
@@ -119,9 +119,40 @@ public bool HasRoleRecorded(const char[] id, int index) {
   bool ret = false;
   if (g_ReplaysKv.JumpToKey(id)) {
     char role[DEFAULT_KEY_LENGTH];
-    GetRoleString(index, role);
+    GetRoleKeyString(index, role);
     if (g_ReplaysKv.JumpToKey(role)) {
       ret = true;
+      g_ReplaysKv.GoBack();
+    }
+    g_ReplaysKv.GoBack();
+  }
+  return ret;
+}
+
+static bool GetRoleKVString(const char[] id, int index, const char[] key, char[] buffer, int len) {
+  bool ret = false;
+  if (g_ReplaysKv.JumpToKey(id)) {
+    char role[DEFAULT_KEY_LENGTH];
+    GetRoleKeyString(index, role);
+    if (g_ReplaysKv.JumpToKey(role)) {
+      ret = true;
+      g_ReplaysKv.GetString(key, buffer, len);
+      g_ReplaysKv.GoBack();
+    }
+    g_ReplaysKv.GoBack();
+  }
+  return ret;
+}
+
+static bool SetRoleKVString(const char[] id, int index, const char[] key, const char[] value) {
+  g_UpdatedReplayKv = true;
+  bool ret = false;
+  if (g_ReplaysKv.JumpToKey(id, true)) {
+    char role[DEFAULT_KEY_LENGTH];
+    GetRoleKeyString(index, role);
+    if (g_ReplaysKv.JumpToKey(role, true)) {
+      ret = true;
+      g_ReplaysKv.SetString(key, value);
       g_ReplaysKv.GoBack();
     }
     g_ReplaysKv.GoBack();
@@ -130,34 +161,11 @@ public bool HasRoleRecorded(const char[] id, int index) {
 }
 
 public bool GetRoleFile(const char[] id, int index, char[] buffer, int len) {
-  bool ret = false;
-  if (g_ReplaysKv.JumpToKey(id)) {
-    char role[DEFAULT_KEY_LENGTH];
-    GetRoleString(index, role);
-    if (g_ReplaysKv.JumpToKey(role)) {
-      ret = true;
-      g_ReplaysKv.GetString("file", buffer, len);
-      g_ReplaysKv.GoBack();
-    }
-    g_ReplaysKv.GoBack();
-  }
-  return ret;
+  return GetRoleKVString(id, index, "file", buffer, len);
 }
 
 public bool SetRoleFile(const char[] id, int index, const char[] filepath) {
-  g_UpdatedReplayKv = true;
-  bool ret = false;
-  if (g_ReplaysKv.JumpToKey(id, true)) {
-    char role[DEFAULT_KEY_LENGTH];
-    GetRoleString(index, role);
-    if (g_ReplaysKv.JumpToKey(role, true)) {
-      ret = true;
-      g_ReplaysKv.SetString("file", filepath);
-      g_ReplaysKv.GoBack();
-    }
-    g_ReplaysKv.GoBack();
-  }
-  return ret;
+  return SetRoleKVString(id, index, "file", filepath);
 }
 
 public void SetRoleNades(const char[] id, int index, int client) {
@@ -165,7 +173,7 @@ public void SetRoleNades(const char[] id, int index, int client) {
   ArrayList list = g_NadeReplayData[client];
   if (g_ReplaysKv.JumpToKey(id, true)) {
     char role[DEFAULT_KEY_LENGTH];
-    GetRoleString(index, role);
+    GetRoleKeyString(index, role);
     if (g_ReplaysKv.JumpToKey(role, true) && g_ReplaysKv.JumpToKey("nades", true)) {
       for (int i = 0; i < list.Length; i++) {
         char key[DEFAULT_KEY_LENGTH];
@@ -195,7 +203,7 @@ public void GetRoleNades(const char[] id, int index, int client) {
   g_NadeReplayData[client].Clear();
   if (g_ReplaysKv.JumpToKey(id, true)) {
     char role[DEFAULT_KEY_LENGTH];
-    GetRoleString(index, role);
+    GetRoleKeyString(index, role);
     if (g_ReplaysKv.JumpToKey(role, true) && g_ReplaysKv.JumpToKey("nades", true)) {
       if (g_ReplaysKv.GotoFirstSubKey()) {
         do {
