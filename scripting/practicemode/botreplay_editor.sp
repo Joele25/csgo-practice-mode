@@ -105,7 +105,6 @@ public Action Command_Cancel(int client, int args) {
   } else if (numReplaying > 0) {
     CancelAllReplays();
     PM_MessageToAll("Cancelled all replays.");
-
   }
 
   return Plugin_Handled;

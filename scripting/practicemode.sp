@@ -934,7 +934,8 @@ public Action Command_TeamJoin(int client, const char[] command, int argc) {
     int team = StringToInt(arg);
     SwitchPlayerTeam(client, team);
 
-    if (g_InBotReplayMode) {
+    // Since we force respawns off during bot replay, make teamswitches respawn players.
+    if (g_InBotReplayMode && team != CS_TEAM_SPECTATOR && team != CS_TEAM_NONE) {
       CS_RespawnPlayer(client);
     }
 
