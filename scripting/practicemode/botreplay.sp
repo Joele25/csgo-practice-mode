@@ -22,7 +22,7 @@ float g_CurrentRecordingStartTime[MAXPLAYERS + 1];
 int g_CurrentRecordingRole[MAXPLAYERS + 1];
 
 // Same data as g_CurrentRecordingRole, but not reset when  recording finishes.
-int g_LastRecordedRole[MAXPLAYERS + 1];
+int g_LastReplayRole[MAXPLAYERS + 1];
 
 // TODO: make g_ReplayId per-client
 char g_ReplayId[MAXPLAYERS + 1][REPLAY_ID_LENGTH];
@@ -191,11 +191,35 @@ public Action Command_NameReplay(int client, int args) {
 
   char buffer[REPLAY_NAME_LENGTH];
   GetCmdArgString(buffer, sizeof(buffer));
-  if (strlen(buffer) == 0) {
-    PM_Message(client, "You didn't give a name! Use: .namereplay <name> first.");
+  if (StrEqual(buffer, "")) {
+    PM_Message(client, "You didn't give a name! Use: .namereplay <name>.");
   } else {
     PM_Message(client, "Saved replay name.");
     SetReplayName(g_ReplayId[client], buffer);
+  }
+  return Plugin_Handled;
+}
+
+public Action Command_NameRole(int client, int args) {
+  if (!g_InPracticeMode) {
+    return Plugin_Handled;
+  }
+
+  if (!HasActiveReplay(client)) {
+    return Plugin_Handled;
+  }
+
+  if (g_LastReplayRole[client] < 0) {
+    return Plugin_Handled;
+  }
+
+  char buffer[REPLAY_NAME_LENGTH];
+  GetCmdArgString(buffer, sizeof(buffer));
+  if (StrEqual(buffer, "")) {
+    PM_Message(client, "You didn't give a name! Use: .namerole <name>.");
+  } else {
+    PM_Message(client, "Saved role %d name.", g_LastReplayRole[client]);
+    SetRoleName(g_ReplayId[client], g_LastReplayRole[client], buffer);
   }
   return Plugin_Handled;
 }
@@ -248,7 +272,7 @@ public void ResetData() {
   }
   for (int i = 0; i <= MaxClients; i++) {
     g_CurrentRecordingRole[i] = -1;
-    g_LastRecordedRole[i] = -1;
+    g_LastReplayRole[i] = -1;
     g_ReplayId[i] = "";
   }
 }

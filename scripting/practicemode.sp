@@ -400,6 +400,9 @@ public void OnPluginStart() {
     RegConsoleCmd("sm_namereplay", Command_NameReplay);
     PM_AddChatAlias(".namereplay", "sm_namereplay");
 
+    RegConsoleCmd("sm_namerole", Command_NameRole);
+    PM_AddChatAlias(".namerole", "sm_namerole");
+
     RegConsoleCmd("sm_cancel", Command_Cancel);
     PM_AddChatAlias(".cancel", "sm_cancel");
 

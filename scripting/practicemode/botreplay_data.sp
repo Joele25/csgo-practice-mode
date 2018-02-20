@@ -135,8 +135,8 @@ static bool GetRoleKVString(const char[] id, int index, const char[] key, char[]
     char role[DEFAULT_KEY_LENGTH];
     GetRoleKeyString(index, role);
     if (g_ReplaysKv.JumpToKey(role)) {
-      ret = true;
       g_ReplaysKv.GetString(key, buffer, len);
+      ret = !StrEqual(buffer, "");
       g_ReplaysKv.GoBack();
     }
     g_ReplaysKv.GoBack();
@@ -166,6 +166,14 @@ public bool GetRoleFile(const char[] id, int index, char[] buffer, int len) {
 
 public bool SetRoleFile(const char[] id, int index, const char[] filepath) {
   return SetRoleKVString(id, index, "file", filepath);
+}
+
+public bool GetRoleName(const char[] id, int index, char[] buffer, int len) {
+  return GetRoleKVString(id, index, "name", buffer, len);
+}
+
+public bool SetRoleName(const char[] id, int index, const char[] name) {
+  return SetRoleKVString(id, index, "name", name);
 }
 
 public void SetRoleNades(const char[] id, int index, int client) {
@@ -312,4 +320,16 @@ public void AddReplayFilesToList(KeyValues kv, ArrayList list) {
     } while (kv.GotoNextKey());
     kv.GoBack();
   }
+}
+
+public void CopyReplay(const char[] originalID, const char[] newID) {
+  KeyValues tmp = new KeyValues("tmp");
+  g_ReplaysKv.JumpToKey(originalID, true);
+  tmp.Import(g_ReplaysKv);
+  g_ReplaysKv.GoBack();
+
+  g_ReplaysKv.JumpToKey(newID, true);
+  KvCopySubkeys(tmp, g_ReplaysKv);
+  g_ReplaysKv.GoBack();
+  delete tmp;
 }

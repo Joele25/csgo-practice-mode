@@ -1,5 +1,5 @@
 stock void GiveReplayEditorMenu(int client, int pos = 0) {
-  if (strlen(g_ReplayId[client]) == 0) {
+  if (StrEqual(g_ReplayId[client], "")) {
     IntToString(GetNextReplayId(), g_ReplayId[client], REPLAY_NAME_LENGTH);
     SetReplayName(g_ReplayId[client], DEFAULT_REPLAY_NAME);
   }
@@ -22,7 +22,12 @@ stock void GiveReplayEditorMenu(int client, int pos = 0) {
     }
     int style = EnabledIf(recordedLastRole);
     if (HasRoleRecorded(g_ReplayId[client], i)) {
-      AddMenuIntStyle(menu, i, style, "Change player %d role", i + 1);
+      char roleName[REPLAY_NAME_LENGTH];
+      if (GetRoleName(g_ReplayId[client], i, roleName, sizeof(roleName))) {
+        AddMenuIntStyle(menu, i, style, "Change player %d role (%s)", i + 1, roleName);
+      } else {
+        AddMenuIntStyle(menu, i, style, "Change player %d role", i + 1);
+      }
     } else {
       AddMenuIntStyle(menu, i, style, "Add player %d role", i + 1);
     }
@@ -33,12 +38,21 @@ stock void GiveReplayEditorMenu(int client, int pos = 0) {
   menu.AddItem("recordall", "Record all player roles at once");
   menu.AddItem("stop", "Stop current replay");
   menu.AddItem("delete", "Delete this replay entirely");
+  menu.AddItem("copy", "Copy this replay to a new replay");
 
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     char infoString[DEFAULT_MENU_LENGTH];
     Format(infoString, sizeof(infoString), "play %d", i);
     char displayString[DEFAULT_MENU_LENGTH];
-    Format(displayString, sizeof(displayString), "Replay player %d role", i + 1);
+
+    char roleName[REPLAY_NAME_LENGTH];
+    if (HasRoleRecorded(g_ReplayId[client], i) &&
+        GetRoleName(g_ReplayId[client], i, roleName, sizeof(roleName))) {
+      Format(displayString, sizeof(displayString), "Replay player %d role (%s)", i + 1, roleName);
+    } else {
+      Format(displayString, sizeof(displayString), "Replay player %d role", i + 1);
+    }
+
     menu.AddItem(infoString, displayString, EnabledIf(HasRoleRecorded(g_ReplayId[client], i)));
   }
 
@@ -151,12 +165,29 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
       PM_Message(client, "Deleted replay: %s", replayName);
       GiveDeleteConfirmationMenu(client);
 
+    } else if (StrEqual(buffer, "copy")) {
+      char replayName[REPLAY_NAME_LENGTH];
+      GetReplayName(g_ReplayId[client], replayName, REPLAY_NAME_LENGTH);
+      PM_Message(client, "Copied replay: %s", replayName);
+
+      char oldReplayId[REPLAY_ID_LENGTH];
+      strcopy(oldReplayId, sizeof(oldReplayId), g_ReplayId[client]);
+      IntToString(GetNextReplayId(), g_ReplayId[client], REPLAY_NAME_LENGTH);
+      CopyReplay(oldReplayId, g_ReplayId[client]);
+
+      char newName[REPLAY_NAME_LENGTH];
+      Format(newName, sizeof(newName), "Copy of %s", replayName);
+      SetReplayName(g_ReplayId[client], newName);
+
+      GiveReplayEditorMenu(client, GetMenuSelectionPosition());
+
     } else if (StrContains(buffer, "play") == 0) {
-      // The string shoudl look like "play 2" here, so we pull out the index here.
-      int index = StringToInt(buffer[5]);
-      int bot = g_ReplayBotClients[index];
-      if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId[client], index)) {
-        ReplayRole(g_ReplayId[client], bot, index);
+      // The string shoudl look like "play 2" here, so we pull out the role index here.
+      int role = StringToInt(buffer[5]);
+      int bot = g_ReplayBotClients[role];
+      if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId[client], role)) {
+        g_LastReplayRole[client] = role;
+        ReplayRole(g_ReplayId[client], bot, role);
       }
       // TODO: figure out a way to show the menu less obtrusively here,
       // maybe by doing it when the replay finishes?
@@ -293,7 +324,7 @@ stock void StartRecording(int client, int role, bool printCommands = true) {
 
   g_NadeReplayData[client].Clear();
   g_CurrentRecordingRole[client] = role;
-  g_LastRecordedRole[client] = role;
+  g_LastReplayRole[client] = role;
   g_CurrentRecordingStartTime[client] = GetGameTime();
 
   char recordName[128];
