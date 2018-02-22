@@ -4,8 +4,7 @@ stock void GiveMainReplaysMenu(int client, int pos = 0) {
   Menu menu = new Menu(ReplaysMenuHandler);
   menu.SetTitle("Replay list");
   menu.AddItem("add_new", "Add new replay");
-
-  CleanupNullReplays();
+  DeleteReplayIfEmpty(client);
 
   g_ReplayId[client] = "";
   char id[REPLAY_ID_LENGTH];
@@ -57,9 +56,25 @@ public void MaybeWriteNewReplayData() {
   }
 }
 
-public void CleanupNullReplays() {
-  // TODO: this should go through all replay ids, and delete those that have
-  // no name specified and no roles specified.
+public void DeleteReplayIfEmpty(int client) {
+  bool empty = true;
+
+  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
+    if (HasRoleRecorded(g_ReplayId[client], i)) {
+      empty = false;
+    }
+  }
+
+  char name[REPLAY_NAME_LENGTH];
+  GetReplayName(g_ReplayId[client], name, sizeof(name));
+  if (!StrEqual(name, DEFAULT_REPLAY_NAME)) {
+    empty = false;
+  }
+
+  // Okay, let's delete this replay since it's useless.
+  if (empty) {
+    DeleteReplay(g_ReplayId[client]);
+  }
 }
 
 public int GetNextReplayId() {
@@ -91,6 +106,10 @@ public void DeleteReplay(const char[] id) {
 }
 
 public bool ReplayExists(const char[] id) {
+  if (StrEqual(id, "")) {
+    return false;
+  }
+
   bool ret = false;
   if (g_ReplaysKv.JumpToKey(id)) {
     ret = true;
@@ -190,14 +209,14 @@ public void SetRoleNades(const char[] id, int index, int client) {
 
         GrenadeType type;
         float delay;
-        float origin[3];
-        float velocity[3];
-        GetReplayNade(client, i, type, delay, origin, velocity);
+        float grenadeOrigin[3];
+        float grenadeVelocity[3];
+        GetReplayNade(client, i, type, delay, grenadeOrigin, grenadeVelocity);
 
         char typeString[DEFAULT_KEY_LENGTH];
         GrenadeTypeString(type, typeString, sizeof(typeString));
-        g_ReplaysKv.SetVector("grenadeOrigin", origin);
-        g_ReplaysKv.SetVector("grenadeVelocity", velocity);
+        g_ReplaysKv.SetVector("grenadeOrigin", grenadeOrigin);
+        g_ReplaysKv.SetVector("grenadeVelocity", grenadeVelocity);
         g_ReplaysKv.SetString("grenadeType", typeString);
         g_ReplaysKv.SetFloat("delay", delay);
         g_ReplaysKv.GoBack();
@@ -330,6 +349,6 @@ public void CopyReplay(const char[] originalID, const char[] newID) {
 
   g_ReplaysKv.JumpToKey(newID, true);
   KvCopySubkeys(tmp, g_ReplaysKv);
-  g_ReplaysKv.GoBack();
+  g_ReplaysKv.Rewind();
   delete tmp;
 }

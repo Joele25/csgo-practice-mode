@@ -162,7 +162,6 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
     } else if (StrEqual(buffer, "delete")) {
       char replayName[REPLAY_NAME_LENGTH];
       GetReplayName(g_ReplayId[client], replayName, REPLAY_NAME_LENGTH);
-      PM_Message(client, "Deleted replay: %s", replayName);
       GiveDeleteConfirmationMenu(client);
 
     } else if (StrEqual(buffer, "copy")) {

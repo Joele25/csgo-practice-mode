@@ -20,6 +20,7 @@ bool g_StopBotSignal[MAXPLAYERS + 1];
 
 float g_CurrentRecordingStartTime[MAXPLAYERS + 1];
 int g_CurrentRecordingRole[MAXPLAYERS + 1];
+// int g_CurrentEditingRole[MAXPLAYERS + 1];
 
 // Same data as g_CurrentRecordingRole, but not reset when  recording finishes.
 int g_LastReplayRole[MAXPLAYERS + 1];
@@ -51,9 +52,6 @@ public void BotReplay_MapStart() {
 
 public void BotReplay_MapEnd() {
   MaybeWriteNewReplayData();
-
-  // TODO: re-enable GarbageCollectReplays once it doesn't delete files currently saved in
-  // backups files.
   GarbageCollectReplays();
 }
 
@@ -83,8 +81,15 @@ public bool HasActiveReplay(int client) {
   return ReplayExists(g_ReplayId[client]);
 }
 
-public bool IsReplayBot(int client) {
+public bool IsPossibleReplayBot(int client) {
   if (!IsValidClient(client) || !IsFakeClient(client) || IsClientSourceTV(client)) {
+    return false;
+  }
+  return IsFakeClient(client) && !g_IsPMBot[client];
+}
+
+public bool IsReplayBot(int client) {
+  if (!IsPossibleReplayBot(client)) {
     return false;
   }
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
@@ -101,7 +106,9 @@ public Action Timer_GetBots(Handle timer) {
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     char name[MAX_NAME_LENGTH];
     Format(name, sizeof(name), "Replay Bot %d", i + 1);
-    g_ReplayBotClients[i] = GetLiveBot(name);
+    if (!IsReplayBot(g_ReplayBotClients[i])) {
+      g_ReplayBotClients[i] = GetLiveBot(name);
+    }
   }
 
   return Plugin_Handled;
@@ -113,12 +120,7 @@ void InitReplayFunctions() {
     g_ReplayBotClients[i] = -1;
   }
 
-  ServerCommand("bot_quota_mode normal");
-  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    ServerCommand("bot_add");
-  }
-
-  CreateTimer(0.2, Timer_GetBots);
+  GetReplayBots();
 
   g_BotInit = true;
   g_InBotReplayMode = true;
@@ -127,6 +129,17 @@ void InitReplayFunctions() {
   // Settings we need to have the mode work
   DisableSettingById("respawning");
   ServerCommand("mp_death_drop_gun 1");
+}
+
+public void GetReplayBots() {
+  ServerCommand("bot_quota_mode normal");
+  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
+    if (!IsReplayBot(i)) {
+      ServerCommand("bot_add");
+    }
+  }
+
+  CreateTimer(0.1, Timer_GetBots);
 }
 
 public Action Command_Replay(int client, int args) {
