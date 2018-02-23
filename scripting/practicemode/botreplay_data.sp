@@ -13,7 +13,9 @@ stock void GiveMainReplaysMenu(int client, int pos = 0) {
     do {
       g_ReplaysKv.GetSectionName(id, sizeof(id));
       g_ReplaysKv.GetString("name", name, sizeof(name));
-      menu.AddItem(id, name);
+      char display[128];
+      Format(display, sizeof(display), "%s (id %s)", name, id);
+      menu.AddItem(id, display);
     } while (g_ReplaysKv.GotoNextKey());
     g_ReplaysKv.GoBack();
   }
@@ -209,12 +211,16 @@ public void SetRoleNades(const char[] id, int index, int client) {
 
         GrenadeType type;
         float delay;
+        float origin[3];
+        float angles[3];
         float grenadeOrigin[3];
         float grenadeVelocity[3];
-        GetReplayNade(client, i, type, delay, grenadeOrigin, grenadeVelocity);
+        GetReplayNade(client, i, type, delay, origin, angles, grenadeOrigin, grenadeVelocity);
 
         char typeString[DEFAULT_KEY_LENGTH];
         GrenadeTypeString(type, typeString, sizeof(typeString));
+        g_ReplaysKv.SetVector("origin", origin);
+        g_ReplaysKv.SetVector("angles", angles);
         g_ReplaysKv.SetVector("grenadeOrigin", grenadeOrigin);
         g_ReplaysKv.SetVector("grenadeVelocity", grenadeVelocity);
         g_ReplaysKv.SetString("grenadeType", typeString);
@@ -238,12 +244,16 @@ public void GetRoleNades(const char[] id, int index, int client) {
           char typeString[DEFAULT_KEY_LENGTH];
           float delay;
           float origin[3];
-          float velocity[3];
-          g_ReplaysKv.GetVector("grenadeOrigin", origin);
-          g_ReplaysKv.GetVector("grenadeVelocity", velocity);
+          float angles[3];
+          float grenadeOrigin[3];
+          float grenadeVelocity[3];
+          g_ReplaysKv.GetVector("origin", origin);
+          g_ReplaysKv.GetVector("angles", angles);
+          g_ReplaysKv.GetVector("grenadeOrigin", grenadeOrigin);
+          g_ReplaysKv.GetVector("grenadeVelocity", grenadeVelocity);
           g_ReplaysKv.GetString("grenadeType", typeString, sizeof(typeString));
           delay = g_ReplaysKv.GetFloat("delay");
-          AddReplayNade(client, type, delay, origin, velocity);
+          AddReplayNade(client, type, delay, origin, angles, grenadeOrigin, grenadeVelocity);
         } while (g_ReplaysKv.GotoNextKey());
       }
     }

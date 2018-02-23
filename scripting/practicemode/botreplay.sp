@@ -46,7 +46,7 @@ public void BotReplay_MapStart() {
 
   for (int i = 0; i <= MaxClients; i++) {
     delete g_NadeReplayData[i];
-    g_NadeReplayData[i] = new ArrayList(8);
+    g_NadeReplayData[i] = new ArrayList(14);
   }
 }
 
@@ -59,7 +59,11 @@ public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeTy
                             const float velocity[3]) {
   if (g_CurrentRecordingRole[client] >= 0) {
     float delay = GetGameTime() - g_CurrentRecordingStartTime[client];
-    AddReplayNade(client, grenadeType, delay, origin, velocity);
+    float personOrigin[3];
+    float personAngles[3];
+    GetClientAbsOrigin(client, personOrigin);
+    GetClientEyeAngles(client, personAngles);
+    AddReplayNade(client, grenadeType, delay, personOrigin, personAngles, origin, velocity);
   }
 
   if (BotMimic_IsPlayerMimicing(client)) {
@@ -68,9 +72,12 @@ public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeTy
     if (index < length) {
       float delay = 0.0;
       GrenadeType type;
+      float personOrigin[3];
+      float personAngles[3];
       float nadeOrigin[3];
       float nadeVelocity[3];
-      GetReplayNade(client, index, type, delay, nadeOrigin, nadeVelocity);
+      GetReplayNade(client, index, type, delay, personOrigin, personAngles, nadeOrigin,
+                    nadeVelocity);
       TeleportEntity(entity, nadeOrigin, NULL_VECTOR, nadeVelocity);
       g_CurrentReplayNadeIndex[client]++;
     }
@@ -161,6 +168,7 @@ public Action Command_Replay(int client, int args) {
     InitReplayFunctions();
   }
 
+  // TODO: if given an arg, set the client's active replay to that id.
   if (HasActiveReplay(client)) {
     GiveReplayEditorMenu(client);
   } else {
@@ -361,28 +369,41 @@ public void Timer_DelayKillBot(int serial) {
   }
 }
 
-public void AddReplayNade(int client, GrenadeType type, float delay, const float[3] origin,
-                   const float[3] velocity) {
+public void AddReplayNade(int client, GrenadeType type, float delay, const float[3] personOrigin,
+                   const float[3] personAngles, const float[3] grenadeOrigin,
+                   const float[3] grenadeVelocity) {
   int index = g_NadeReplayData[client].Push(type);
   g_NadeReplayData[client].Set(index, view_as<int>(delay), 1);
-  g_NadeReplayData[client].Set(index, view_as<int>(origin[0]), 2);
-  g_NadeReplayData[client].Set(index, view_as<int>(origin[1]), 3);
-  g_NadeReplayData[client].Set(index, view_as<int>(origin[2]), 4);
-  g_NadeReplayData[client].Set(index, view_as<int>(velocity[0]), 5);
-  g_NadeReplayData[client].Set(index, view_as<int>(velocity[1]), 6);
-  g_NadeReplayData[client].Set(index, view_as<int>(velocity[2]), 7);
+  g_NadeReplayData[client].Set(index, view_as<int>(personOrigin[0]), 2);
+  g_NadeReplayData[client].Set(index, view_as<int>(personOrigin[1]), 3);
+  g_NadeReplayData[client].Set(index, view_as<int>(personOrigin[2]), 4);
+  g_NadeReplayData[client].Set(index, view_as<int>(personAngles[0]), 5);
+  g_NadeReplayData[client].Set(index, view_as<int>(personAngles[1]), 6);
+  g_NadeReplayData[client].Set(index, view_as<int>(personAngles[2]), 7);
+  g_NadeReplayData[client].Set(index, view_as<int>(grenadeOrigin[0]), 8);
+  g_NadeReplayData[client].Set(index, view_as<int>(grenadeOrigin[1]), 9);
+  g_NadeReplayData[client].Set(index, view_as<int>(grenadeOrigin[2]), 10);
+  g_NadeReplayData[client].Set(index, view_as<int>(grenadeVelocity[0]), 11);
+  g_NadeReplayData[client].Set(index, view_as<int>(grenadeVelocity[1]), 12);
+  g_NadeReplayData[client].Set(index, view_as<int>(grenadeVelocity[2]), 13);
 }
 
-public void GetReplayNade(int client, int index, GrenadeType& type, float& delay, float origin[3],
-                   float velocity[3]) {
+public void GetReplayNade(int client, int index, GrenadeType& type, float& delay, float personOrigin[3],
+                   float personAngles[3], float grenadeOrigin[3], float grenadeVelocity[3]) {
   type = g_NadeReplayData[client].Get(index, 0);
   delay = g_NadeReplayData[client].Get(index, 1);
-  origin[0] = g_NadeReplayData[client].Get(index, 2);
-  origin[1] = g_NadeReplayData[client].Get(index, 3);
-  origin[2] = g_NadeReplayData[client].Get(index, 4);
-  velocity[0] = g_NadeReplayData[client].Get(index, 5);
-  velocity[1] = g_NadeReplayData[client].Get(index, 6);
-  velocity[2] = g_NadeReplayData[client].Get(index, 7);
+  personOrigin[0] = g_NadeReplayData[client].Get(index, 2);
+  personOrigin[1] = g_NadeReplayData[client].Get(index, 3);
+  personOrigin[2] = g_NadeReplayData[client].Get(index, 4);
+  personAngles[0] = g_NadeReplayData[client].Get(index, 5);
+  personAngles[1] = g_NadeReplayData[client].Get(index, 6);
+  personAngles[2] = g_NadeReplayData[client].Get(index, 7);
+  grenadeOrigin[0] = g_NadeReplayData[client].Get(index, 8);
+  grenadeOrigin[1] = g_NadeReplayData[client].Get(index, 9);
+  grenadeOrigin[2] = g_NadeReplayData[client].Get(index, 10);
+  grenadeVelocity[0] = g_NadeReplayData[client].Get(index, 11);
+  grenadeVelocity[1] = g_NadeReplayData[client].Get(index, 12);
+  grenadeVelocity[2] = g_NadeReplayData[client].Get(index, 13);
 }
 
 public void CancelAllReplays() {
