@@ -45,68 +45,6 @@ stock void GiveReplayEditorMenu(int client, int pos = 0) {
   menu.DisplayAt(client, pos, MENU_TIME_FOREVER);
 }
 
-void FinishRecording(int client, bool printOnFail) {
-  if (g_RecordingFullReplay) {
-    for (int i = 0; i <= MaxClients; i++) {
-      if (IsPlayer(i) && BotMimic_IsPlayerRecording(i)) {
-        BotMimic_StopRecording(i, true /* save */);
-      }
-    }
-
-  } else {
-    if (BotMimic_IsPlayerRecording(client)) {
-      BotMimic_StopRecording(client, true /* save */);
-    } else if (printOnFail) {
-      PM_Message(client, "You aren't recording a playback right now.");
-    }
-  }
-}
-
-public Action Command_FinishRecording(int client, int args) {
-  if (!g_InPracticeMode) {
-    return Plugin_Handled;
-  }
-  FinishRecording(client, true);
-  return Plugin_Handled;
-}
-
-public Action Command_LookAtWeapon(int client, const char[] command, int argc) {
-  // TODO: also hook the noclip command as a way to finish recording.
-  FinishRecording(client, false);
-  return Plugin_Continue;
-}
-
-public Action Command_Cancel(int client, int args) {
-  if (!g_InPracticeMode) {
-    return Plugin_Handled;
-  }
-
-  int numReplaying = 0;
-  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    int bot = g_ReplayBotClients[i];
-    if (IsValidClient(bot) && BotMimic_IsPlayerMimicing(bot)) {
-      numReplaying++;
-    }
-  }
-
-  if (g_RecordingFullReplay) {
-    for (int i = 1; i <= MaxClients; i++) {
-      if (IsPlayer(i) && BotMimic_IsPlayerRecording(i)) {
-        BotMimic_StopRecording(client, false /* save */);
-      }
-    }
-
-  } else if (BotMimic_IsPlayerRecording(client)) {
-    BotMimic_StopRecording(client, false /* save */);
-
-  } else if (numReplaying > 0) {
-    CancelAllReplays();
-    PM_MessageToAll("Cancelled all replays.");
-  }
-
-  return Plugin_Handled;
-}
-
 public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param2) {
   if (action == MenuAction_Select) {
     int client = param1;
@@ -234,7 +172,69 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
   return 0;
 }
 
-stock void GiveReplayRoleMenu(int client, int role, int pos=0) {
+void FinishRecording(int client, bool printOnFail) {
+  if (g_RecordingFullReplay) {
+    for (int i = 0; i <= MaxClients; i++) {
+      if (IsPlayer(i) && BotMimic_IsPlayerRecording(i)) {
+        BotMimic_StopRecording(i, true /* save */);
+      }
+    }
+
+  } else {
+    if (BotMimic_IsPlayerRecording(client)) {
+      BotMimic_StopRecording(client, true /* save */);
+    } else if (printOnFail) {
+      PM_Message(client, "You aren't recording a playback right now.");
+    }
+  }
+}
+
+public Action Command_FinishRecording(int client, int args) {
+  if (!g_InPracticeMode) {
+    return Plugin_Handled;
+  }
+  FinishRecording(client, true);
+  return Plugin_Handled;
+}
+
+public Action Command_LookAtWeapon(int client, const char[] command, int argc) {
+  // TODO: also hook the noclip command as a way to finish recording.
+  FinishRecording(client, false);
+  return Plugin_Continue;
+}
+
+public Action Command_Cancel(int client, int args) {
+  if (!g_InPracticeMode) {
+    return Plugin_Handled;
+  }
+
+  int numReplaying = 0;
+  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
+    int bot = g_ReplayBotClients[i];
+    if (IsValidClient(bot) && BotMimic_IsPlayerMimicing(bot)) {
+      numReplaying++;
+    }
+  }
+
+  if (g_RecordingFullReplay) {
+    for (int i = 1; i <= MaxClients; i++) {
+      if (IsPlayer(i) && BotMimic_IsPlayerRecording(i)) {
+        BotMimic_StopRecording(client, false /* save */);
+      }
+    }
+
+  } else if (BotMimic_IsPlayerRecording(client)) {
+    BotMimic_StopRecording(client, false /* save */);
+
+  } else if (numReplaying > 0) {
+    CancelAllReplays();
+    PM_MessageToAll("Cancelled all replays.");
+  }
+
+  return Plugin_Handled;
+}
+
+stock void GiveReplayRoleMenu(int client, int role, int pos = 0) {
   Menu menu = new Menu(ReplayRoleMenuHandler);
   g_CurrentEditingRole[client] = role;
 
@@ -263,13 +263,13 @@ stock void GiveReplayRoleMenu(int client, int role, int pos=0) {
   menu.AddItem("spawn", "Go to spawn position", EnabledIf(recorded));
   menu.AddItem("play", "Play this recording", EnabledIf(recorded));
   menu.AddItem("name", "Name this role", EnabledIf(recorded));
+  menu.AddItem("nades", "View nade lineups", EnabledIf(recorded));
   menu.AddItem("delete", "Delete recording", EnabledIf(recorded));
 
   menu.DisplayAt(client, MENU_TIME_FOREVER, pos);
 }
 
 public int ReplayRoleMenuHandler(Menu menu, MenuAction action, int param1, int param2) {
-
   if (action == MenuAction_Select) {
     int client = param1;
     int role = g_CurrentEditingRole[client];
@@ -279,12 +279,12 @@ public int ReplayRoleMenuHandler(Menu menu, MenuAction action, int param1, int p
     if (StrEqual(buffer, "record")) {
       if (BotMimic_IsPlayerRecording(client)) {
         PM_Message(client, "Finish your current recording first!");
-        GiveMainReplaysMenu(client);
+        GiveReplayRoleMenu(client, role, GetMenuSelectionPosition());
         return 0;
       }
       if (IsReplayPlaying()) {
         PM_Message(client, "Finish your current replay first!");
-        GiveMainReplaysMenu(client);
+        GiveReplayRoleMenu(client, role, GetMenuSelectionPosition());
         return 0;
       }
       StartRecording(client, role);
@@ -311,6 +311,9 @@ public int ReplayRoleMenuHandler(Menu menu, MenuAction action, int param1, int p
       PM_Message(client, "Use .namerole <name> to name this role.");
       GiveReplayRoleMenu(client, role, GetMenuSelectionPosition());
 
+    } else if (StrEqual(buffer, "nades")) {
+      GiveReplayRoleNadesMenu(client);
+
     } else if (StrEqual(buffer, "delete")) {
       DeleteReplayRole(g_ReplayId[client], role);
       PM_Message(client, "Deleted role %d.", role + 1);
@@ -320,6 +323,76 @@ public int ReplayRoleMenuHandler(Menu menu, MenuAction action, int param1, int p
   } else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack) {
     int client = param1;
     GiveReplayEditorMenu(client);
+
+  } else if (action == MenuAction_End) {
+    delete menu;
+  }
+
+  return 0;
+}
+
+stock void GiveReplayRoleNadesMenu(int client, int pos = 0) {
+  Menu menu = new Menu(ReplayRoleNadesMenuHandler);
+  menu.SetTitle("Role %d nades", g_CurrentEditingRole[client] + 1);
+  menu.ExitButton = true;
+  menu.ExitBackButton = true;
+
+  GetRoleNades(g_ReplayId[client], g_CurrentEditingRole[client], client);
+  for (int i = 0; i < g_NadeReplayData[client].Length; i++) {
+    GrenadeType type;
+    float delay;
+    float personOrigin[3];
+    float personAngles[3];
+    float grenadeOrigin[3];
+    float grenadeVelocity[3];
+    GetReplayNade(client, i, type, delay, personOrigin, personAngles, grenadeOrigin,
+                  grenadeVelocity);
+
+    char displayString[128];
+    GrenadeTypeString(type, displayString, sizeof(displayString));
+    AddMenuInt(menu, i, displayString);
+  }
+
+  menu.DisplayAt(client, MENU_TIME_FOREVER, pos);
+}
+
+public int ReplayRoleNadesMenuHandler(Menu menu, MenuAction action, int param1, int param2) {
+  if (action == MenuAction_Select) {
+    int client = param1;
+    int nadeIndex = GetMenuInt(menu, param2);
+
+    GrenadeType type;
+    float delay;
+    float personOrigin[3];
+    float personAngles[3];
+    float grenadeOrigin[3];
+    float grenadeVelocity[3];
+    GetReplayNade(client, nadeIndex, type, delay, personOrigin, personAngles, grenadeOrigin,
+                  grenadeVelocity);
+
+    TeleportEntity(client, personOrigin, personAngles, NULL_VECTOR);
+
+    // TODO: de-dupliate with TeleportToSavedGrenadePosition.
+    if (type != GrenadeType_None && GetSetting(client, UserSetting_SwitchToNadeOnSelect)) {
+      char weaponName[64];
+      GetGrenadeWeapon(type, weaponName, sizeof(weaponName));
+      FakeClientCommand(client, "use %s", weaponName);
+
+      // This is a dirty hack since saved nade data doesn't differentiate between a inc and molotov
+      // grenade. See the problem in GrenadeFromProjectileName in csutils.inc. If that is fixed this
+      // can be removed.
+      if (type == GrenadeType_Molotov) {
+        FakeClientCommand(client, "use weapon_incgrenade");
+      } else if (type == GrenadeType_Incendiary) {
+        FakeClientCommand(client, "use weapon_molotov");
+      }
+
+      GiveReplayRoleNadesMenu(client, GetMenuSelectionPosition());
+    }
+
+  } else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack) {
+    int client = param1;
+    GiveReplayRoleMenu(client, g_CurrentEditingRole[client]);
 
   } else if (action == MenuAction_End) {
     delete menu;

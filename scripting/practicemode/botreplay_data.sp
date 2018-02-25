@@ -263,11 +263,20 @@ public void GetRoleNades(const char[] id, int index, int client) {
           float angles[3];
           float grenadeOrigin[3];
           float grenadeVelocity[3];
+
+          char nadeId[GRENADE_ID_LENGTH];
+          g_ReplaysKv.GetString("id", nadeId, sizeof(nadeId));
+          if (!StrEqual(nadeId, "")) {
+            // TODO: get the nade data form the grenade kv.
+            // one day...
+          }
+
           g_ReplaysKv.GetVector("origin", origin);
           g_ReplaysKv.GetVector("angles", angles);
           g_ReplaysKv.GetVector("grenadeOrigin", grenadeOrigin);
           g_ReplaysKv.GetVector("grenadeVelocity", grenadeVelocity);
           g_ReplaysKv.GetString("grenadeType", typeString, sizeof(typeString));
+          type = GrenadeTypeFromString(typeString);
           delay = g_ReplaysKv.GetFloat("delay");
           AddReplayNade(client, type, delay, origin, angles, grenadeOrigin, grenadeVelocity);
         } while (g_ReplaysKv.GotoNextKey());

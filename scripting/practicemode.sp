@@ -211,6 +211,7 @@ Handle g_OnPracticeModeSettingsRead = INVALID_HANDLE;
 #include "practicemode/botreplay.sp"
 #include "practicemode/botreplay_data.sp"
 #include "practicemode/botreplay_editor.sp"
+#include "practicemode/botreplay_utils.sp"
 
 #include "practicemode/bots.sp"
 #include "practicemode/botsmenu.sp"

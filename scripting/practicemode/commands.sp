@@ -184,6 +184,9 @@ public Action Command_StopAll(int client, int args) {
   if (g_RunningRepeatedCommand[client]) {
     Command_StopRepeat(client, 0);
   }
+  if (IsReplayPlaying()) {
+    CancelAllReplays();
+  }
   return Plugin_Handled;
 }
 

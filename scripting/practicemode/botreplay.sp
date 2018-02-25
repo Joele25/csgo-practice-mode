@@ -21,8 +21,9 @@ bool g_StopBotSignal[MAXPLAYERS + 1];
 float g_CurrentRecordingStartTime[MAXPLAYERS + 1];
 
 // TODO: collapse these into 1 variable
-int g_CurrentRecordingRole[MAXPLAYERS + 1]; // Only set if the client is actively recording.
-int g_CurrentEditingRole[MAXPLAYERS + 1]; // Only set if the client is actively editing (OR recording).
+int g_CurrentRecordingRole[MAXPLAYERS + 1];  // Only set if the client is actively recording.
+int g_CurrentEditingRole[MAXPLAYERS +
+                         1];  // Only set if the client is actively editing (OR recording).
 
 // TODO: make g_ReplayId per-client
 char g_ReplayId[MAXPLAYERS + 1][REPLAY_ID_LENGTH];
@@ -81,29 +82,6 @@ public void Replays_OnThrowGrenade(int entity, int client, GrenadeType grenadeTy
       g_CurrentReplayNadeIndex[client]++;
     }
   }
-}
-
-public bool HasActiveReplay(int client) {
-  return ReplayExists(g_ReplayId[client]);
-}
-
-public bool IsPossibleReplayBot(int client) {
-  if (!IsValidClient(client) || !IsFakeClient(client) || IsClientSourceTV(client)) {
-    return false;
-  }
-  return IsFakeClient(client) && !g_IsPMBot[client];
-}
-
-public bool IsReplayBot(int client) {
-  if (!IsPossibleReplayBot(client)) {
-    return false;
-  }
-  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    if (g_ReplayBotClients[i] == client) {
-      return true;
-    }
-  }
-  return false;
 }
 
 public Action Timer_GetBots(Handle timer) {
@@ -169,8 +147,15 @@ public Action Command_Replay(int client, int args) {
 
   // TODO: if given an arg, set the client's active replay to that id.
   if (HasActiveReplay(client)) {
-    GiveReplayEditorMenu(client);
+    if (g_CurrentEditingRole[client] >= 0) {
+      // Replay-role specific menu.
+      GiveReplayRoleMenu(client, g_CurrentEditingRole[client]);
+    } else {
+      // Replay-specific menu.
+      GiveReplayEditorMenu(client);
+    }
   } else {
+    // All replays menu.
     GiveMainReplaysMenu(client);
   }
 
@@ -244,48 +229,6 @@ public Action Command_NameRole(int client, int args) {
   return Plugin_Handled;
 }
 
-public int GetLargestBotUserId() {
-  int largestUserid = -1;
-  for (int i = 1; i <= MaxClients; i++) {
-    if (IsValidClient(i) && IsFakeClient(i) && !IsClientSourceTV(i)) {
-      int userid = GetClientUserId(i);
-      if (userid > largestUserid) {
-        if (i == g_ReplayBotClients[0] || i == g_ReplayBotClients[1] ||
-            i == g_ReplayBotClients[2] || i == g_ReplayBotClients[3] ||
-            i == g_ReplayBotClients[4]) {
-          continue;
-        }
-        largestUserid = userid;
-      }
-    }
-  }
-  return largestUserid;
-}
-
-public int GetLiveBot(const char[] name) {
-  int largestUserid = GetLargestBotUserId();
-  if (largestUserid == -1) {
-    return -1;
-  }
-
-  int bot = GetClientOfUserId(largestUserid);
-  if (!IsValidClient(bot)) {
-    return -1;
-  }
-
-  SetClientName(bot, name);
-  CS_SwitchTeam(bot, CS_TEAM_T);
-  KillBot(bot);
-  return bot;
-}
-
-public void KillBot(int client) {
-  // TODO: get a better default spot to put the bot.
-  float botOrigin[3] = {-7000.0, 0.0, 0.0};
-  TeleportEntity(client, botOrigin, NULL_VECTOR, NULL_VECTOR);
-  ForcePlayerSuicide(client);
-}
-
 public void ResetData() {
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
     g_StopBotSignal[i] = false;
@@ -295,63 +238,6 @@ public void ResetData() {
     g_CurrentEditingRole[i] = -1;
     g_ReplayId[i] = "";
   }
-}
-
-stock void RunReplay(const char[] id, int exclude = -1) {
-  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    if (i == exclude) {
-      continue;
-    }
-
-    int bot = g_ReplayBotClients[i];
-    if (IsValidClient(bot) && HasRoleRecorded(id, i)) {
-      ReplayRole(id, bot, i);
-    }
-  }
-}
-
-void ReplayRole(const char[] id, int client, int role) {
-  if (!IsValidClient(client)) {
-    return;
-  }
-
-  if (!IsReplayBot(client)) {
-    LogError("Called ReplayRole on non-replay bot %L", client);
-    return;
-  }
-  if (BotMimic_IsPlayerMimicing(client)) {
-    LogError("Called ReplayRole on already-replaying bot %L", client);
-    return;
-  }
-
-  char filepath[PLATFORM_MAX_PATH + 1];
-  GetRoleFile(id, role, filepath, sizeof(filepath));
-  GetRoleNades(id, role, client);
-
-  g_CurrentReplayNadeIndex[client] = 0;
-  CS_RespawnPlayer(client);
-  DataPack pack = new DataPack();
-  pack.WriteCell(client);
-  pack.WriteString(filepath);
-  g_StopBotSignal[client] = false;
-  g_CurrentReplayNadeIndex[client] = 0;
-  RequestFrame(StartReplay, pack);
-}
-
-public void StartReplay(DataPack pack) {
-  pack.Reset();
-  int client = pack.ReadCell();
-  char filepath[128];
-  pack.ReadString(filepath, sizeof(filepath));
-
-  BMError err = BotMimic_PlayRecordFromFile(client, filepath);
-  if (err != BM_NoError) {
-    char errString[128];
-    BotMimic_GetErrorString(err, errString, sizeof(errString));
-    LogError("Error playing record %s on client %d: %s", filepath, client, errString);
-  }
-
-  delete pack;
 }
 
 public void BotMimic_OnPlayerMimicLoops(int client) {
@@ -366,90 +252,4 @@ public void BotMimic_OnPlayerMimicLoops(int client) {
   } else {
     g_StopBotSignal[client] = true;
   }
-}
-
-public void Timer_DelayKillBot(int serial) {
-  int client = GetClientFromSerial(serial);
-  if (IsValidClient(client) && IsPlayerAlive(client)) {
-    float zero[3];
-    TeleportEntity(client, zero, zero, zero);
-    KillBot(client);
-  }
-}
-
-public void AddReplayNade(int client, GrenadeType type, float delay, const float[3] personOrigin,
-                   const float[3] personAngles, const float[3] grenadeOrigin,
-                   const float[3] grenadeVelocity) {
-  int index = g_NadeReplayData[client].Push(type);
-  g_NadeReplayData[client].Set(index, view_as<int>(delay), 1);
-  g_NadeReplayData[client].Set(index, view_as<int>(personOrigin[0]), 2);
-  g_NadeReplayData[client].Set(index, view_as<int>(personOrigin[1]), 3);
-  g_NadeReplayData[client].Set(index, view_as<int>(personOrigin[2]), 4);
-  g_NadeReplayData[client].Set(index, view_as<int>(personAngles[0]), 5);
-  g_NadeReplayData[client].Set(index, view_as<int>(personAngles[1]), 6);
-  g_NadeReplayData[client].Set(index, view_as<int>(personAngles[2]), 7);
-  g_NadeReplayData[client].Set(index, view_as<int>(grenadeOrigin[0]), 8);
-  g_NadeReplayData[client].Set(index, view_as<int>(grenadeOrigin[1]), 9);
-  g_NadeReplayData[client].Set(index, view_as<int>(grenadeOrigin[2]), 10);
-  g_NadeReplayData[client].Set(index, view_as<int>(grenadeVelocity[0]), 11);
-  g_NadeReplayData[client].Set(index, view_as<int>(grenadeVelocity[1]), 12);
-  g_NadeReplayData[client].Set(index, view_as<int>(grenadeVelocity[2]), 13);
-}
-
-public void GetReplayNade(int client, int index, GrenadeType& type, float& delay, float personOrigin[3],
-                   float personAngles[3], float grenadeOrigin[3], float grenadeVelocity[3]) {
-  type = g_NadeReplayData[client].Get(index, 0);
-  delay = g_NadeReplayData[client].Get(index, 1);
-  personOrigin[0] = g_NadeReplayData[client].Get(index, 2);
-  personOrigin[1] = g_NadeReplayData[client].Get(index, 3);
-  personOrigin[2] = g_NadeReplayData[client].Get(index, 4);
-  personAngles[0] = g_NadeReplayData[client].Get(index, 5);
-  personAngles[1] = g_NadeReplayData[client].Get(index, 6);
-  personAngles[2] = g_NadeReplayData[client].Get(index, 7);
-  grenadeOrigin[0] = g_NadeReplayData[client].Get(index, 8);
-  grenadeOrigin[1] = g_NadeReplayData[client].Get(index, 9);
-  grenadeOrigin[2] = g_NadeReplayData[client].Get(index, 10);
-  grenadeVelocity[0] = g_NadeReplayData[client].Get(index, 11);
-  grenadeVelocity[1] = g_NadeReplayData[client].Get(index, 12);
-  grenadeVelocity[2] = g_NadeReplayData[client].Get(index, 13);
-}
-
-public void CancelAllReplays() {
-  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    int bot = g_ReplayBotClients[i];
-    if (IsValidClient(bot) && BotMimic_IsPlayerMimicing(bot)) {
-      BotMimic_StopPlayerMimic(bot);
-      RequestFrame(Timer_DelayKillBot, GetClientSerial(bot));
-    }
-  }
-}
-
-public bool IsReplayPlaying() {
-  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    int bot = g_ReplayBotClients[i];
-    if (IsValidClient(bot) && BotMimic_IsPlayerMimicing(bot)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-public void GotoReplayStart(int client, const char[] id, int role) {
-  char filepath[PLATFORM_MAX_PATH + 1];
-  GetRoleFile(id, role, filepath, sizeof(filepath));
-  int header[BMFileHeader];
-  BMError error = BotMimic_GetFileHeaders(filepath, header, sizeof(header));
-  if (error != BM_NoError) {
-    char errorString[128];
-    BotMimic_GetErrorString(error, errorString, sizeof(errorString));
-    LogError("Failed to get %s headers: %s", filepath, errorString);
-    return;
-  }
-
-  float origin[3];
-  float angles[3];
-  float velocity[3];
-  Array_Copy(header[BMFH_initialPosition], origin, 3);
-  Array_Copy(header[BMFH_initialAngles], angles, 3);
-  TeleportEntity(client, origin, angles, velocity);
 }
