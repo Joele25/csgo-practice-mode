@@ -4,15 +4,13 @@ stock void GiveReplayEditorMenu(int client, int pos = 0) {
     SetReplayName(g_ReplayId[client], DEFAULT_REPLAY_NAME);
   }
 
+  // Reset role specific data.
+  g_CurrentEditingRole[client] = -1;
+
   Menu menu = new Menu(ReplayMenuHandler);
   char replayName[REPLAY_NAME_LENGTH];
   GetReplayName(g_ReplayId[client], replayName, REPLAY_NAME_LENGTH);
-
-  if (StrEqual(replayName, DEFAULT_REPLAY_NAME, false)) {
-    menu.SetTitle("Replay editor");
-  } else {
-    menu.SetTitle("Replay editor: %s", replayName);
-  }
+  menu.SetTitle("Replay editor: %s", replayName);
 
   /* Page 1 */
   for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
@@ -32,33 +30,18 @@ stock void GiveReplayEditorMenu(int client, int pos = 0) {
       AddMenuIntStyle(menu, i, style, "Add player %d role", i + 1);
     }
   }
+
   menu.AddItem("replay", "Run replay");
 
   /* Page 2 */
   menu.AddItem("recordall", "Record all player roles at once");
   menu.AddItem("stop", "Stop current replay");
-  menu.AddItem("delete", "Delete this replay entirely");
+  menu.AddItem("name", "Name this replay");
   menu.AddItem("copy", "Copy this replay to a new replay");
-
-  for (int i = 0; i < MAX_REPLAY_CLIENTS; i++) {
-    char infoString[DEFAULT_MENU_LENGTH];
-    Format(infoString, sizeof(infoString), "play %d", i);
-    char displayString[DEFAULT_MENU_LENGTH];
-
-    char roleName[REPLAY_NAME_LENGTH];
-    if (HasRoleRecorded(g_ReplayId[client], i) &&
-        GetRoleName(g_ReplayId[client], i, roleName, sizeof(roleName))) {
-      Format(displayString, sizeof(displayString), "Replay player %d role (%s)", i + 1, roleName);
-    } else {
-      Format(displayString, sizeof(displayString), "Replay player %d role", i + 1);
-    }
-
-    menu.AddItem(infoString, displayString, EnabledIf(HasRoleRecorded(g_ReplayId[client], i)));
-  }
+  menu.AddItem("delete", "Delete this replay entirely");
 
   menu.ExitButton = true;
   menu.ExitBackButton = true;
-
   menu.DisplayAt(client, pos, MENU_TIME_FOREVER);
 }
 
@@ -180,18 +163,9 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
 
       GiveReplayEditorMenu(client, GetMenuSelectionPosition());
 
-    } else if (StrContains(buffer, "play") == 0) {
-      // The string shoudl look like "play 2" here, so we pull out the role index here.
-      int role = StringToInt(buffer[5]);
-      int bot = g_ReplayBotClients[role];
-      if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId[client], role)) {
-        g_LastReplayRole[client] = role;
-        ReplayRole(g_ReplayId[client], bot, role);
-      }
-      // TODO: figure out a way to show the menu less obtrusively here,
-      // maybe by doing it when the replay finishes?
-
-      // GiveReplayEditorMenu(client, GetMenuSelectionPosition());
+    } else if (StrContains(buffer, "name") == 0) {
+      PM_Message(client, "Use .namereplay <name> to name this replay.");
+      GiveReplayEditorMenu(client, GetMenuSelectionPosition());
 
     } else if (StrEqual(buffer, "recordall")) {
       int count = 0;
@@ -243,19 +217,7 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
         char idxString[16];
         IntToString(i, idxString, sizeof(idxString));
         if (StrEqual(buffer, idxString)) {
-          if (BotMimic_IsPlayerRecording(client)) {
-            PM_Message(client, "Finish your current recording first!");
-            GiveMainReplaysMenu(client);
-            break;
-          }
-          if (IsReplayPlaying()) {
-            PM_Message(client, "Finish your current replay first!");
-            GiveMainReplaysMenu(client);
-            break;
-          }
-
-          StartRecording(client, i);
-          RunReplay(g_ReplayId[client], i);
+          GiveReplayRoleMenu(client, i);
           break;
         }
       }
@@ -264,6 +226,100 @@ public int ReplayMenuHandler(Menu menu, MenuAction action, int param1, int param
   } else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack) {
     int client = param1;
     GiveMainReplaysMenu(client);
+
+  } else if (action == MenuAction_End) {
+    delete menu;
+  }
+
+  return 0;
+}
+
+stock void GiveReplayRoleMenu(int client, int role, int pos=0) {
+  Menu menu = new Menu(ReplayRoleMenuHandler);
+  g_CurrentEditingRole[client] = role;
+
+  char replayName[REPLAY_NAME_LENGTH];
+  GetReplayName(g_ReplayId[client], replayName, sizeof(replayName));
+
+  char roleName[REPLAY_NAME_LENGTH];
+  GetRoleName(g_ReplayId[client], role, roleName, sizeof(roleName));
+
+  if (StrEqual(roleName, "")) {
+    menu.SetTitle("%s: role %d", replayName, role + 1, roleName);
+  } else {
+    menu.SetTitle("%s: role %d (%s)", replayName, role + 1, roleName);
+  }
+
+  menu.ExitButton = true;
+  menu.ExitBackButton = true;
+
+  bool recorded = HasRoleRecorded(g_ReplayId[client], role);
+  if (recorded) {
+    menu.AddItem("record", "Re-record role");
+  } else {
+    menu.AddItem("record", "Record role");
+  }
+
+  menu.AddItem("spawn", "Go to spawn position", EnabledIf(recorded));
+  menu.AddItem("play", "Play this recording", EnabledIf(recorded));
+  menu.AddItem("name", "Name this role", EnabledIf(recorded));
+  menu.AddItem("delete", "Delete recording", EnabledIf(recorded));
+
+  menu.DisplayAt(client, MENU_TIME_FOREVER, pos);
+}
+
+public int ReplayRoleMenuHandler(Menu menu, MenuAction action, int param1, int param2) {
+
+  if (action == MenuAction_Select) {
+    int client = param1;
+    int role = g_CurrentEditingRole[client];
+    char buffer[OPTION_NAME_LENGTH];
+    menu.GetItem(param2, buffer, sizeof(buffer));
+
+    if (StrEqual(buffer, "record")) {
+      if (BotMimic_IsPlayerRecording(client)) {
+        PM_Message(client, "Finish your current recording first!");
+        GiveMainReplaysMenu(client);
+        return 0;
+      }
+      if (IsReplayPlaying()) {
+        PM_Message(client, "Finish your current replay first!");
+        GiveMainReplaysMenu(client);
+        return 0;
+      }
+      StartRecording(client, role);
+      RunReplay(g_ReplayId[client], role);
+
+    } else if (StrEqual(buffer, "spawn")) {
+      GotoReplayStart(client, g_ReplayId[client], role);
+      GiveReplayRoleMenu(client, role, GetMenuSelectionPosition());
+
+    } else if (StrEqual(buffer, "play")) {
+      if (IsReplayPlaying()) {
+        PM_Message(client, "Finish your current replay first!");
+        GiveMainReplaysMenu(client);
+        return 0;
+      }
+
+      int bot = g_ReplayBotClients[role];
+      if (IsValidClient(bot) && HasRoleRecorded(g_ReplayId[client], role)) {
+        ReplayRole(g_ReplayId[client], bot, role);
+      }
+      GiveReplayRoleMenu(client, role, GetMenuSelectionPosition());
+
+    } else if (StrEqual(buffer, "name")) {
+      PM_Message(client, "Use .namerole <name> to name this role.");
+      GiveReplayRoleMenu(client, role, GetMenuSelectionPosition());
+
+    } else if (StrEqual(buffer, "delete")) {
+      DeleteReplayRole(g_ReplayId[client], role);
+      PM_Message(client, "Deleted role %d.", role + 1);
+      GiveReplayEditorMenu(client);
+    }
+
+  } else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack) {
+    int client = param1;
+    GiveReplayEditorMenu(client);
 
   } else if (action == MenuAction_End) {
     delete menu;
@@ -323,7 +379,6 @@ stock void StartRecording(int client, int role, bool printCommands = true) {
 
   g_NadeReplayData[client].Clear();
   g_CurrentRecordingRole[client] = role;
-  g_LastReplayRole[client] = role;
   g_CurrentRecordingStartTime[client] = GetGameTime();
 
   char recordName[128];

@@ -19,11 +19,10 @@ int g_RecordingFullReplayClient = -1;
 bool g_StopBotSignal[MAXPLAYERS + 1];
 
 float g_CurrentRecordingStartTime[MAXPLAYERS + 1];
-int g_CurrentRecordingRole[MAXPLAYERS + 1];
-// int g_CurrentEditingRole[MAXPLAYERS + 1];
 
-// Same data as g_CurrentRecordingRole, but not reset when  recording finishes.
-int g_LastReplayRole[MAXPLAYERS + 1];
+// TODO: collapse these into 1 variable
+int g_CurrentRecordingRole[MAXPLAYERS + 1]; // Only set if the client is actively recording.
+int g_CurrentEditingRole[MAXPLAYERS + 1]; // Only set if the client is actively editing (OR recording).
 
 // TODO: make g_ReplayId per-client
 char g_ReplayId[MAXPLAYERS + 1][REPLAY_ID_LENGTH];
@@ -230,7 +229,7 @@ public Action Command_NameRole(int client, int args) {
     return Plugin_Handled;
   }
 
-  if (g_LastReplayRole[client] < 0) {
+  if (g_CurrentEditingRole[client] < 0) {
     return Plugin_Handled;
   }
 
@@ -239,8 +238,8 @@ public Action Command_NameRole(int client, int args) {
   if (StrEqual(buffer, "")) {
     PM_Message(client, "You didn't give a name! Use: .namerole <name>.");
   } else {
-    PM_Message(client, "Saved role %d name.", g_LastReplayRole[client]);
-    SetRoleName(g_ReplayId[client], g_LastReplayRole[client], buffer);
+    PM_Message(client, "Saved role %d name.", g_CurrentEditingRole[client]);
+    SetRoleName(g_ReplayId[client], g_CurrentEditingRole[client], buffer);
   }
   return Plugin_Handled;
 }
@@ -293,7 +292,7 @@ public void ResetData() {
   }
   for (int i = 0; i <= MaxClients; i++) {
     g_CurrentRecordingRole[i] = -1;
-    g_LastReplayRole[i] = -1;
+    g_CurrentEditingRole[i] = -1;
     g_ReplayId[i] = "";
   }
 }
@@ -313,6 +312,15 @@ stock void RunReplay(const char[] id, int exclude = -1) {
 
 void ReplayRole(const char[] id, int client, int role) {
   if (!IsValidClient(client)) {
+    return;
+  }
+
+  if (!IsReplayBot(client)) {
+    LogError("Called ReplayRole on non-replay bot %L", client);
+    return;
+  }
+  if (BotMimic_IsPlayerMimicing(client)) {
+    LogError("Called ReplayRole on already-replaying bot %L", client);
     return;
   }
 
@@ -424,4 +432,24 @@ public bool IsReplayPlaying() {
     }
   }
   return false;
+}
+
+public void GotoReplayStart(int client, const char[] id, int role) {
+  char filepath[PLATFORM_MAX_PATH + 1];
+  GetRoleFile(id, role, filepath, sizeof(filepath));
+  int header[BMFileHeader];
+  BMError error = BotMimic_GetFileHeaders(filepath, header, sizeof(header));
+  if (error != BM_NoError) {
+    char errorString[128];
+    BotMimic_GetErrorString(error, errorString, sizeof(errorString));
+    LogError("Failed to get %s headers: %s", filepath, errorString);
+    return;
+  }
+
+  float origin[3];
+  float angles[3];
+  float velocity[3];
+  Array_Copy(header[BMFH_initialPosition], origin, 3);
+  Array_Copy(header[BMFH_initialAngles], angles, 3);
+  TeleportEntity(client, origin, angles, velocity);
 }

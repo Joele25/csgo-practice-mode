@@ -7,6 +7,8 @@ stock void GiveMainReplaysMenu(int client, int pos = 0) {
   DeleteReplayIfEmpty(client);
 
   g_ReplayId[client] = "";
+  g_CurrentEditingRole[client] = -1;
+
   char id[REPLAY_ID_LENGTH];
   char name[REPLAY_NAME_LENGTH];
   if (g_ReplaysKv.GotoFirstSubKey()) {
@@ -32,6 +34,7 @@ public int ReplaysMenuHandler(Menu menu, MenuAction action, int param1, int para
     if (StrEqual(buffer, "add_new")) {
       IntToString(GetNextReplayId(), g_ReplayId[client], REPLAY_NAME_LENGTH);
       SetReplayName(g_ReplayId[client], DEFAULT_REPLAY_NAME);
+      PM_Message(client, "Started new replay with id %s", g_ReplayId[client]);
     } else {
       strcopy(g_ReplayId[client], REPLAY_NAME_LENGTH, buffer);
     }
@@ -100,11 +103,24 @@ public void GetRoleKeyString(int role, char buf[DEFAULT_KEY_LENGTH]) {
 }
 
 public void DeleteReplay(const char[] id) {
-  g_UpdatedReplayKv = true;
   if (g_ReplaysKv.JumpToKey(id)) {
+    g_UpdatedReplayKv = true;
     g_ReplaysKv.DeleteThis();
     g_ReplaysKv.Rewind();
   }
+}
+
+public void DeleteReplayRole(const char[] id, int role) {
+  if (g_ReplaysKv.JumpToKey(id)) {
+    char roleString[DEFAULT_KEY_LENGTH];
+    GetRoleKeyString(role, roleString);
+    if (g_ReplaysKv.JumpToKey(roleString)) {
+      g_UpdatedReplayKv = true;
+      g_ReplaysKv.DeleteThis();
+    }
+  }
+
+  g_ReplaysKv.Rewind();
 }
 
 public bool ReplayExists(const char[] id) {
