@@ -26,13 +26,7 @@ public int GetLargestBotUserId() {
   for (int i = 1; i <= MaxClients; i++) {
     if (IsValidClient(i) && IsFakeClient(i) && !IsClientSourceTV(i)) {
       int userid = GetClientUserId(i);
-      if (userid > largestUserid) {
-        // TOOD: ... it's obvious what to do.
-        if (i == g_ReplayBotClients[0] || i == g_ReplayBotClients[1] ||
-            i == g_ReplayBotClients[2] || i == g_ReplayBotClients[3] ||
-            i == g_ReplayBotClients[4]) {
-          continue;
-        }
+      if (userid > largestUserid && !IsReplayBot(i)) {
         largestUserid = userid;
       }
     }

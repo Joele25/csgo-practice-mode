@@ -114,8 +114,21 @@ void InitReplayFunctions() {
   g_RecordingFullReplay = false;
 
   // Settings we need to have the mode work
-  DisableSettingById("respawning");
+  ChangeSettingById("respawning", false);
   ServerCommand("mp_death_drop_gun 1");
+
+  PM_MessageToAll("Launched replay mode.");
+}
+
+public void ExitReplayMode() {
+  ServerCommand("bot_kick");
+  g_BotInit = false;
+  g_InBotReplayMode = false;
+  g_RecordingFullReplay = false;
+  ChangeSettingById("respawning", true);
+  ServerCommand("mp_death_drop_gun 0");
+
+  PM_MessageToAll("Exited replay mode.");
 }
 
 public void GetReplayBots() {

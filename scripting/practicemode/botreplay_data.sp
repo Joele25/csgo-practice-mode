@@ -4,6 +4,7 @@ stock void GiveMainReplaysMenu(int client, int pos = 0) {
   Menu menu = new Menu(ReplaysMenuHandler);
   menu.SetTitle("Replay list");
   menu.AddItem("add_new", "Add new replay");
+  menu.AddItem("exit", "Exit replay mode");
   DeleteReplayIfEmpty(client);
 
   g_ReplayId[client] = "";
@@ -35,6 +36,10 @@ public int ReplaysMenuHandler(Menu menu, MenuAction action, int param1, int para
       IntToString(GetNextReplayId(), g_ReplayId[client], REPLAY_NAME_LENGTH);
       SetReplayName(g_ReplayId[client], DEFAULT_REPLAY_NAME);
       PM_Message(client, "Started new replay with id %s", g_ReplayId[client]);
+
+    } else if (StrContains(buffer, "exit") == 0) {
+      ExitReplayMode();
+
     } else {
       strcopy(g_ReplayId[client], REPLAY_NAME_LENGTH, buffer);
     }

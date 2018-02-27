@@ -344,7 +344,7 @@ public int ChangeMapHandler(Menu menu, MenuAction action, int param1, int param2
   }
 }
 
-public void DisableSettingById(const char[] id) {
+public void ChangeSettingById(const char[] id, bool setting) {
   for (int i = 0; i < g_BinaryOptionIds.Length; i++) {
     char name[OPTION_NAME_LENGTH];
     g_BinaryOptionIds.GetString(i, name, sizeof(name));
@@ -360,16 +360,16 @@ public Action Command_DryRun(int client, int args) {
   }
 
   SetCvar("mp_freezetime", g_DryRunFreezeTimeCvar.IntValue);
-  DisableSettingById("allradar");
-  DisableSettingById("blockroundendings");
-  DisableSettingById("buyanywhere");
-  DisableSettingById("cheats");
-  DisableSettingById("grenadetrajectory");
-  DisableSettingById("infiniteammo");
-  DisableSettingById("infintemoney");
-  DisableSettingById("noclip");
-  DisableSettingById("respawning");
-  DisableSettingById("showimpacts");
+  ChangeSettingById("allradar", false);
+  ChangeSettingById("blockroundendings", false);
+  ChangeSettingById("buyanywhere", false);
+  ChangeSettingById("cheats", false);
+  ChangeSettingById("grenadetrajectory", false);
+  ChangeSettingById("infiniteammo", false);
+  ChangeSettingById("infintemoney", false);
+  ChangeSettingById("noclip", false);
+  ChangeSettingById("respawning", false);
+  ChangeSettingById("showimpacts", false);
 
   for (int i = 1; i <= MaxClients; i++) {
     g_TestingFlash[i] = false;
