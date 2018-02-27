@@ -32,6 +32,9 @@ int g_ReplayBotClients[MAX_REPLAY_CLIENTS];
 int g_CurrentReplayNadeIndex[MAXPLAYERS + 1];
 ArrayList g_NadeReplayData[MAXPLAYERS + 1];
 
+// TODO: cvar/setting?
+bool g_BotReplayChickenMode = false;
+
 public void BotReplay_MapStart() {
   g_BotInit = false;
   delete g_ReplaysKv;

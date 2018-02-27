@@ -118,6 +118,11 @@ public void StartReplay(DataPack pack) {
   char filepath[128];
   pack.ReadString(filepath, sizeof(filepath));
 
+  if (g_BotReplayChickenMode) {
+    SetEntityModel(client, CHICKEN_MODEL);
+    SetEntPropFloat(client, Prop_Send, "m_flModelScale", 10.0);
+  }
+
   BMError err = BotMimic_PlayRecordFromFile(client, filepath);
   if (err != BM_NoError) {
     char errString[128];
