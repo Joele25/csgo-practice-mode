@@ -131,15 +131,6 @@ public bool TeleportToSavedGrenadePosition(int client, const char[] id) {
       char weaponName[64];
       GetGrenadeWeapon(type, weaponName, sizeof(weaponName));
       FakeClientCommand(client, "use %s", weaponName);
-
-      // This is a dirty hack since saved nade data doesn't differentiate between a inc and molotov
-      // grenade. See the problem in GrenadeFromProjectileName in csutils.inc. If that is fixed this
-      // can be removed.
-      if (type == GrenadeType_Molotov) {
-        FakeClientCommand(client, "use weapon_incgrenade");
-      } else if (type == GrenadeType_Incendiary) {
-        FakeClientCommand(client, "use weapon_molotov");
-      }
     }
 
     g_GrenadeLocationsKv.Rewind();
